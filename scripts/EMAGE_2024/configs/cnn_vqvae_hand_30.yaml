@@ -7,16 +7,9 @@ test_data_path: /beat_4english_30_full/test_copy/
 mean_pose_path: /beat_4english_30_full/train_copy/
 std_pose_path: /beat_4english_30_full/train_copy/
 
-
-# train_data_path: /beat_4english_30_141/train/ 
-# val_data_path: /beat_4english_30_141/val/ 
-# test_data_path: /beat_4english_30_141/test/ 
-# mean_pose_path: /beat_4english_30_141/train/
-# std_pose_path: /beat_4english_30_141/train/
-
 stat: wandb
 dataset: beat_skeleton
-new_cache: True
+new_cache: False
 
 # ori_joints: beat_smplx_joints
 # tar_joints: beat_smplx_upper
@@ -25,8 +18,8 @@ pose_rep: skeleton_cache
 
 #-- Need to be changed to work with skeleton
 ori_joints: skeleton_joint_full
-tar_joints: skeleton_lower
-pose_version: skeleton_lower
+tar_joints: skeleton_hand
+pose_version: skeleton_hand
 pose_fps: 30
 
 
@@ -38,7 +31,7 @@ project: emage_skeleton
 
 ##-----Keep unchanged-------##
 vae_test_len: 64
-vae_test_dim: 33
+vae_test_dim: 144
 vae_test_stride: 20
 vae_length: 256
 vae_codebook_size: 256
@@ -48,7 +41,7 @@ variational: False
 ##---------------------------##
 
 # pose_dims: 78
-pose_dims: 33 # change to work with skeleton
+pose_dims: 144 # change to work with skeleton
 
 pose_length: 64 #keep unchanged
 stride: 20 #keep unchanged
@@ -61,13 +54,12 @@ word_index_num: 11195
 word_dims: 300
 batch_size: 512
 lr_base: 1e-4
-decay_epochs: 99
+decay_epochs: 9999
 model: motion_representation
-g_name: VQVAEConvZero #VAEConvZero
-trainer: aeskeleton_lower # change to work with skeleton
+g_name: VQVAEConvZero
+trainer: aeskeleton_hand # change to work with skeleton
 ##---------------------------##
 
-pretrain: True
 # audio_f: 256
 # a_pre_encoder: tcn_camn
 # a_encoder: lp
