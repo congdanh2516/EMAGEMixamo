@@ -102,9 +102,7 @@ class CustomTrainer(train.BaseTrainer):
             self.opt.zero_grad()
            
             net_out = self.model(tar_pose)
-            rec_pose = net_out["rec_pose"] 
-            # test = net_out["rec_pose"][:, :, :j*3]
-            # logger.info(f"REC_POSE: {test}")
+            rec_pose = net_out["rec_pose"]
             ##-----------------Reconstruction loss------------##
             recon_loss = self.rec_loss(rec_pose, tar_pose)
          

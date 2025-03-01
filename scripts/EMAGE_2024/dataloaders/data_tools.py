@@ -2049,6 +2049,11 @@ def result2target_vis(pose_version, res_bvhlist, save_path, demo_name, verbose=T
         target_list = joints_list["skeleton_upper"]
         file_content_length = 431
 
+    elif "skeleton_face" in pose_version:
+        ori_list = joints_list["beat_joints"]
+        target_list = joints_list["skeleton_face"]
+        file_content_length = 431
+
 
     elif "yostar" in pose_version:
         ori_list = joints_list["yostar"]

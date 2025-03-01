@@ -65,7 +65,8 @@ class MAGE_Transformer(nn.Module):
     def __init__(self, args):
         super(MAGE_Transformer, self).__init__()
         self.args = args   
-        with open(f"{args.data_path}weights/vocab.pkl", 'rb') as f:
+        # with open(f"{args.data_path}weights/vocab.pkl", 'rb') as f:
+        with open(f"{args.root_path}{args.train_data_path[:-11]}vocab.pkl", 'rb') as f:
             self.lang_model = pickle.load(f)
             pre_trained_embedding = self.lang_model.word_embedding_weights
         self.text_pre_encoder_face = nn.Embedding.from_pretrained(torch.FloatTensor(pre_trained_embedding),freeze=args.t_fix_pre)

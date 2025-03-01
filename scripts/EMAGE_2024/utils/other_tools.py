@@ -840,6 +840,7 @@ def save_checkpoints(save_path, model, opt=None, epoch=None, lrs=None):
     torch.save(states, save_path)
 
 def load_checkpoints(model, save_path, load_name='model'):
+    logger.info(f"SAVE PATH{save_path}")
     states = torch.load(save_path)
     new_weights = OrderedDict()
     flag=False

@@ -16,7 +16,7 @@ std_pose_path: /beat_4english_30_full/train_copy/
 
 stat: wandb
 dataset: beat_skeleton
-new_cache: True
+new_cache: False
 
 # ori_joints: beat_smplx_joints
 # tar_joints: beat_smplx_upper

@@ -346,8 +346,8 @@ class CustomDataset(Dataset):
             for type, n_filtered in n_filtered_out.items():
                 logger.info("{}: {}".format(type, n_filtered))
                 n_total_filtered += n_filtered
-            logger.info(colored("no. of excluded samples: {} ({:.1f}%)".format(
-                n_total_filtered, 100 * n_total_filtered / (txn.stat()["entries"] + n_total_filtered)), "cyan"))
+            # logger.info(colored("no. of excluded samples: {} ({:.1f}%)".format(
+            #     n_total_filtered, 100 * n_total_filtered / (txn.stat()["entries"] + n_total_filtered)), "cyan"))
         dst_lmdb_env.sync()
         dst_lmdb_env.close()
     

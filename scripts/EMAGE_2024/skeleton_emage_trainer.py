@@ -25,54 +25,85 @@ from dataloaders.data_tools import joints_list
 import librosa
 
 class CustomTrainer(train.BaseTrainer):
-    def __init__(self, args):
+    def __init__(self, args, loader_type="train", build_cache=True): # adding build_cache=True
         super().__init__(args)
         self.args = args
         self.joints = self.train_data.joints
         self.ori_joint_list = joints_list[self.args.ori_joints]
-        self.tar_joint_list_face = joints_list["beat_smplx_face"]
-        self.tar_joint_list_upper = joints_list["beat_smplx_upper"]
-        self.tar_joint_list_hands = joints_list["beat_smplx_hands"]
-        self.tar_joint_list_lower = joints_list["beat_smplx_lower"]
+        self.tar_joint_list_face = joints_list["skeleton_face"]
+        self.tar_joint_list_upper = joints_list["skeleton_upper"]
+        self.tar_joint_list_hands = joints_list["skeleton_hand"]
+        self.tar_joint_list_lower = joints_list["skeleton_lower"]
+
+        self.joints = 75
        
         self.joint_mask_face = np.zeros(len(list(self.ori_joint_list.keys()))*3)
-        self.joints = 55
         for joint_name in self.tar_joint_list_face:
             self.joint_mask_face[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
+            
         self.joint_mask_upper = np.zeros(len(list(self.ori_joint_list.keys()))*3)
         for joint_name in self.tar_joint_list_upper:
-            self.joint_mask_upper[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
+            if joint_name == "Hips":
+                self.joint_mask_upper[3:6] = 1
+            else:
+                self.joint_mask_upper[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
+            
         self.joint_mask_hands = np.zeros(len(list(self.ori_joint_list.keys()))*3)
         for joint_name in self.tar_joint_list_hands:
             self.joint_mask_hands[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
+            
         self.joint_mask_lower = np.zeros(len(list(self.ori_joint_list.keys()))*3)
         for joint_name in self.tar_joint_list_lower:
             self.joint_mask_lower[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
 
         self.tracker = other_tools.EpochTracker(["fid", "l1div", "bc", "rec", "trans", "vel", "transv", 'dis', 'gen', 'acc', 'transa', 'exp', 'lvd', 'mse', "cls", "rec_face", "latent", "cls_full", "cls_self", "cls_word", "latent_word","latent_self"], [False,True,True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,False,False,False])
         
+        
         vq_model_module = __import__(f"models.motion_representation", fromlist=["something"])
         self.args.vae_layer = 2
         self.args.vae_length = 256
-        self.args.vae_test_dim = 106
+        self.args.vae_test_dim = 6
         self.vq_model_face = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
         # print(self.vq_model_face)
-        other_tools.load_checkpoints(self.vq_model_face, self.args.data_path_1 +  "pretrained_vq/last_790_face_v2.bin", args.e_name)
-        self.args.vae_test_dim = 78
+        logger.info(f"THIS IS FACE")
+        other_tools.load_checkpoints(self.vq_model_face, "./outputs/audio2pose/custom/0205_173746_cnn_vqvae_face_30/last_1.bin", args.e_name)
+        
+        self.args.vae_test_dim = 39
         self.vq_model_upper = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-        other_tools.load_checkpoints(self.vq_model_upper, self.args.data_path_1 +  "pretrained_vq/upper_vertex_1layer_710.bin", args.e_name)
-        self.args.vae_test_dim = 180
+        other_tools.load_checkpoints(self.vq_model_upper, "./outputs/audio2pose/custom/1203_213726_cnn_vqvae_upper_30_skeleton/last_1.bin", args.e_name)
+        
+        self.args.vae_test_dim = 144
         self.vq_model_hands = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-        other_tools.load_checkpoints(self.vq_model_hands, self.args.data_path_1 +  "pretrained_vq/hands_vertex_1layer_710.bin", args.e_name)
-        self.args.vae_test_dim = 61
+        checkpoint = other_tools.load_checkpoints(self.vq_model_hands, "./outputs/audio2pose/custom/0224_214718_cnn_vqvae_hand_30/last_1.bin", args.e_name)
+        
+        logger.info(f"VQVAE Model Keys: {list(self.vq_model_hands.state_dict().keys())}")
+
+        if checkpoint:
+            logger.info(f"Checkpoint Keys: {list(checkpoint.keys())}")
+        else:
+            logger.warning("Checkpoint loading failed or returned None.")
+
+        logger.info(f"TO HAND, BEGIN LOADING LOWER")
+        
+        
+        self.args.vae_test_dim = 33
         self.args.vae_layer = 4
         self.vq_model_lower = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-        other_tools.load_checkpoints(self.vq_model_lower, self.args.data_path_1 +  "pretrained_vq/lower_foot_600.bin", args.e_name)
+
+        logger.info(f"VQVAE: {self.vq_model_lower.keys}")
+        logger.info(f"CHECK POINT : {other_tools.load_checkpoints(self.vq_model_hands, './outputs/audio2pose/custom/0224_214718_cnn_vqvae_lower_30/last_1.bin', args.e_name).keys()}")
+        
+        other_tools.load_checkpoints(self.vq_model_lower, "./outputs/audio2pose/custom/0206_192547_cnn_vqvae_lower_30/last_1.bin", args.e_name)
+
+        logger.info(f"DONE LOAD LOWER")
+
+        # remaining
         self.args.vae_test_dim = 61
         self.args.vae_layer = 4
         self.global_motion = getattr(vq_model_module, "VAEConvZero")(self.args).to(self.rank)
-        other_tools.load_checkpoints(self.global_motion, self.args.data_path_1 +  "pretrained_vq/last_1700_foot.bin", args.e_name)
-        self.args.vae_test_dim = 330
+        other_tools.load_checkpoints(self.global_motion, ".outputs/audio2pose/custom/0208_120714_cnn_vqvae_lower_foot_30/last_1.bin", args.e_name)
+        
+        self.args.vae_test_dim = 225
         self.args.vae_layer = 4
         self.args.vae_length = 240
 
@@ -87,7 +118,301 @@ class CustomTrainer(train.BaseTrainer):
         self.vel_loss = torch.nn.L1Loss(reduction='mean').to(self.rank)
         self.rec_loss = get_loss_func("GeodesicLoss").to(self.rank) 
         self.log_softmax = nn.LogSoftmax(dim=2).to(self.rank)
+        
+        #---------add new from BEAT----------#
+        self.audio_fps = args.audio_fps
+        self.loader_type = loader_type
+        self.new_cache = args.new_cache
+        self.pose_rep = args.pose_rep
+
+        # build cache
+        self.disable_filtering = args.disable_filtering
+        self.clean_first_seconds = args.clean_first_seconds
+        self.clean_final_seconds = args.clean_final_seconds
+
+        # self.data_dir
+        if loader_type == "train":
+            self.data_dir = args.root_path + args.train_data_path
+            self.multi_length_training = args.multi_length_training
+        elif loader_type == "val":
+            self.data_dir = args.root_path + args.val_data_path
+            self.multi_length_training = args.multi_length_training 
+        else:
+            self.data_dir = args.root_path + args.test_data_path
+            self.multi_length_training = [1.0]
       
+        self.max_length = int(self.pose_length * self.multi_length_training[-1])
+        
+        if self.word_rep is not None:
+            with open(f"{args.root_path}{args.train_data_path[:-6]}vocab.pkl", 'rb') as f:
+                self.lang_model = pickle.load(f)
+        
+        preloaded_dir = self.data_dir + f"{self.pose_rep}_cache"
+
+        #-------# need to confirm its usage
+        self.mean_pose = np.load(args.root_path+args.mean_pose_path+f"{args.pose_rep}/bvh_mean.npy")
+        self.std_pose = np.load(args.root_path+args.mean_pose_path+f"{args.pose_rep}/bvh_std.npy")
+        self.audio_norm = args.audio_norm
+        self.facial_norm = args.facial_norm
+        if self.audio_norm:
+            self.mean_audio = np.load(args.root_path+args.mean_pose_path+f"{args.audio_rep}/npy_mean.npy")
+            self.std_audio = np.load(args.root_path+args.mean_pose_path+f"{args.audio_rep}/npy_std.npy")
+        if self.facial_norm:
+            self.mean_facial = np.load(args.root_path+args.mean_pose_path+f"{args.facial_rep}/json_mean.npy")
+            self.std_facial = np.load(args.root_path+args.mean_pose_path+f"{args.facial_rep}/json_std.npy")
+        #------#
+        
+        if build_cache and self.rank == 0:
+            self.build_cache(preloaded_dir)
+        self.lmdb_env = lmdb.open(preloaded_dir, readonly=True, lock=False)
+        with self.lmdb_env.begin() as txn:
+            self.n_samples = txn.stat()["entries"]
+
+
+        #----cache_generation------#
+        self.disable_filtering = args.disable_filtering
+        
+        #end-------add new from BEAT---------#  
+    
+    #---------add new from BEAT----------#
+
+    #-begin-build_cache------------------#
+
+    def build_cache(self, preloaded_dir):
+        logger.info(f"Audio bit rate: {self.audio_fps}")
+        logger.info("Reading data '{}'...".format(self.data_dir))
+        
+        # pose_length_extended = int(round(self.pose_length))
+        logger.info("Creating the dataset cache...")
+        if self.new_cache:
+            if os.path.exists(preloaded_dir):
+                shutil.rmtree(preloaded_dir)
+
+        if os.path.exists(preloaded_dir):
+            logger.info("Found the cache {}".format(preloaded_dir))
+        elif self.loader_type == "test":
+            self.cache_generation(
+                preloaded_dir, True, 
+                0, 0,
+                is_test=True)
+        else: 
+            self.cache_generation(
+                preloaded_dir, self.disable_filtering, 
+                self.clean_first_seconds, self.clean_final_seconds,
+                is_test=False)
+            
+    #-end-build_cache-------------------#   
+
+    #-begin-cache_generation-------------------#
+
+    def cache_generation(self, out_lmdb_dir, disable_filtering, clean_first_seconds,  clean_final_seconds, is_test=False):
+        self.n_out_samples = 0
+        pose_files = sorted(glob.glob(os.path.join(self.data_dir, f"{self.pose_rep}") + "/*.bvh"), key=str,)  
+        # create db for samples
+
+        ##******************Note: Change desired FPS at self.pose_fps/xx*******************
+        map_size = int(1024 * 1024 * 2048 * (self.audio_fps/16000)**3 * 4) * (len(pose_files)/30*(self.pose_fps/30)) * len(self.multi_length_training) * self.multi_length_training[-1] * 2 # in 1024 MB
+        dst_lmdb_env = lmdb.open(out_lmdb_dir, map_size=map_size)
+        n_filtered_out = defaultdict(int)
+    
+        for pose_file in pose_files:
+            pose_each_file = []
+            pose_each_file_new = []
+            audio_each_file = []
+            facial_each_file = []
+            word_each_file = []
+            emo_each_file = []
+            sem_each_file = []
+            vid_each_file = []
+            
+            id_pose = pose_file.split("/")[-1][:-4] #1_wayne_0_1_1
+            logger.info(colored(f"# ---- Building cache for Pose   {id_pose} ---- #", "blue"))
+            
+            with open(pose_file, "r") as pose_data:
+                for j, line in enumerate(pose_data.readlines()):
+                    data = np.fromstring(line, dtype=float, sep=" ") # 1*27 e.g., 27 rotation 
+                    data =  np.array(data)
+                    # logger.info(f"DATA: {data} {len(data)}")
+                    # logger.info(f"JOINT MASK: {self.joint_mask} {len(self.joint_mask)}")
+                    data = data * self.joint_mask
+                    data = data[self.joint_mask.astype(bool)]
+                    pose_each_file.append(data)
+
+            #     print("X1: ", len(pose_each_file_new))
+                
+            # print("joint_mask: ", len(self.joint_mask))
+            # print("joint_mask: ", self.joint_mask)
+
+            # assert 120%self.args.pose_fps == 0, 'pose_fps should be an aliquot part of 120'
+            # stride = int(120/self.args.pose_fps)
+            # with open(pose_file, "r") as pose_data:
+            #     for j, line in enumerate(pose_data.readlines()):
+            #         # if j < 431: continue     
+            #         # if j%stride != 0:continue
+            #         data = np.fromstring(line, dtype=float, sep=" ")
+
+            #         rot_data = rc.euler_angles_to_matrix(torch.from_numpy(np.deg2rad(data)).reshape(-1, self.joints,3), "XYZ")
+            #         rot_data = rc.matrix_to_axis_angle(rot_data).reshape(-1, self.joints*3) 
+            #         rot_data = rot_data.numpy() * self.joint_mask
+            #         rot_data = rot_data[:, self.joint_mask.astype(bool)]
+            #         pose_each_file.append(rot_data)
+
+            pose_each_file = np.array(pose_each_file) # n frames * 27
+            # shape_each_file = np.repeat(np.array(-1).reshape(1, 1), pose_each_file.shape[0], axis=0)
+
+            if self.audio_rep is not None:
+                logger.info(f"# ---- Building cache for Audio  {id_pose} and Pose {id_pose} ---- #")
+                audio_file = pose_file.replace(self.pose_rep, self.audio_rep).replace("bvh", "npy")
+                try:
+                    audio_each_file = np.load(audio_file)
+                except:
+                    logger.warning(f"# ---- file not found for Audio {id_pose}, skip all files with the same id ---- #")
+                    continue
+                if self.audio_norm: 
+                    audio_each_file = (audio_each_file - self.mean_audio) / self.std_audio
+                    
+            if self.facial_rep is not None:
+                logger.info(f"# ---- Building cache for Facial {id_pose} and Pose {id_pose} ---- #")
+                facial_file = pose_file.replace(self.pose_rep, self.facial_rep).replace("bvh", "json")
+                try:
+                    with open(facial_file, 'r') as facial_data_file:
+                        facial_data = json.load(facial_data_file)
+                        for j, frame_data in enumerate(facial_data['frames']):
+                            if self.facial_norm:
+                                facial_each_file.append((frame_data['weights']-self.mean_facial) / self.std_facial)
+                            else:
+                                facial_each_file.append(frame_data['weights'])
+                    facial_each_file = np.array(facial_each_file)
+                except:
+                    logger.warning(f"# ---- file not found for Facial {id_pose}, skip all files with the same id ---- #")
+                    continue
+                    
+            if id_pose.split("_")[-1] == "b":
+                time_offset = 30 if int(id_pose.split("_")[-3]) % 2 == 0 else 300
+                logger.warning(time_offset)
+            else:
+                time_offset = 0
+                
+            if self.word_rep is not None:
+                logger.info(f"# ---- Building cache for Word   {id_pose} and Pose {id_pose} ---- #")
+                word_file = pose_file.replace(self.pose_rep, self.word_rep).replace("bvh", "TextGrid")
+                try:
+                    tgrid = tg.TextGrid.fromFile(word_file)
+                except:
+                    logger.warning(f"# ---- file not found for Word {id_pose}, skip all files with the same id ---- #")
+                    continue
+                # the length of text file are reduce to the length of motion file, for x_x_a or x_x_b
+                for i in range(pose_each_file.shape[0]):
+                    found_flag = False
+                    current_time = i/self.pose_fps + time_offset
+                    for word in tgrid[0]:
+                        word_n, word_s, word_e = word.mark, word.minTime, word.maxTime
+                        if word_s<=current_time and current_time<=word_e:
+                            if word_n == " ":
+                                #TODO now don't have eos and sos token
+                                word_each_file.append(self.lang_model.PAD_token)
+                            else:    
+                                word_each_file.append(self.lang_model.get_word_index(word_n))
+                            found_flag = True
+                            break
+                        else: continue   
+                    if not found_flag: word_each_file.append(self.lang_model.UNK_token)
+                # list of index
+                word_each_file = np.array(word_each_file)
+                    
+            if self.emo_rep is not None:
+                logger.info(f"# ---- Building cache for Emo    {id_pose} and Pose {id_pose} ---- #")
+                emo_file = pose_file.replace(self.pose_rep, self.emo_rep).replace("bvh", "csv")
+                try:    
+                    emo_all = pd.read_csv(emo_file, 
+                        sep=',', 
+                        names=["name", "start_time", "end_time", "duration", "score"])
+                except:
+                    logger.warning(f"# ---- file not found for Emo {id_pose}, skip all files with the same id ---- #")
+                    continue
+                for i in range(pose_each_file.shape[0]):
+                    found_flag = False
+                    for j, (start, end, score) in enumerate(zip(emo_all['start_time'],emo_all['end_time'], emo_all['score'])):
+                        current_time = i/self.pose_fps + time_offset
+                        if start<=current_time and current_time<=end: 
+                            emo_each_file.append(score)
+                            found_flag=True
+                            break
+                        else: continue 
+                    if not found_flag: emo_each_file.append(0)
+                emo_each_file = np.array(emo_each_file)
+                #print(emo_each_file)
+                
+            if self.sem_rep is not None:
+                logger.info(f"# ---- Building cache for Sem    {id_pose} and Pose {id_pose} ---- #")
+                sem_file = pose_file.replace(self.pose_rep, self.sem_rep).replace("bvh", "txt")
+                try:
+                    sem_all = pd.read_csv(sem_file, 
+                        sep='\t', 
+                        names=["name", "start_time", "end_time", "duration", "score", "keywords"])
+                except:
+                    logger.warning(f"# ---- file not found for Sem {id_pose}, skip all files with the same id ---- #")
+                    continue
+                # we adopt motion-level semantic score here. 
+                for i in range(pose_each_file.shape[0]):
+                    found_flag = False
+                    for j, (start, end, score) in enumerate(zip(sem_all['start_time'],sem_all['end_time'], sem_all['score'])):
+                        current_time = i/self.pose_fps + time_offset
+                        if start<=current_time and current_time<=end: 
+                            sem_each_file.append(score)
+                            found_flag=True
+                            break
+                        else: continue 
+                    if not found_flag: sem_each_file.append(0.)
+                sem_each_file = np.array(sem_each_file)
+                #print(sem_each_file)
+            
+            ##------------Modify here-------## 
+            if self.id_rep is not None:
+                vid_each_file.append(int(id_pose.split("_")[0])-1)
+
+            ## Note: it's only need to mapping if there is missing file in the dataset
+                ## REMOVE ABOVE LINE BY THESE LINE IF NEED MAPPING
+                # int_value = self.idmapping(int(f_name.split("_")[0]))
+                # vid_each_file = np.repeat(np.array(int_value).reshape(1, 1), pose_each_file.shape[0], axis=0)
+            
+            ##------------------------------##
+            
+            filtered_result = self._sample_from_clip(
+                dst_lmdb_env,
+                audio_each_file, pose_each_file, facial_each_file, word_each_file,
+                vid_each_file, emo_each_file, sem_each_file,
+                disable_filtering, clean_first_seconds, clean_final_seconds, is_test,
+                ) 
+            for type in filtered_result.keys():
+                n_filtered_out[type] += filtered_result[type]
+                                
+        with dst_lmdb_env.begin() as txn:
+            logger.info(colored(f"no. of samples: {txn.stat()['entries']}", "cyan"))
+            n_total_filtered = 0
+            for type, n_filtered in n_filtered_out.items():
+                logger.info("{}: {}".format(type, n_filtered))
+                n_total_filtered += n_filtered
+            # logger.info(colored("no. of excluded samples: {} ({:.1f}%)".format(
+            #     n_total_filtered, 100 * n_total_filtered / (txn.stat()["entries"] + n_total_filtered)), "cyan"))
+        dst_lmdb_env.sync()
+        dst_lmdb_env.close()
+        
+    #-end-cache_generation-------------------#
+
+    #-begin-normalize_pose---------------#
+
+    @staticmethod
+    def normalize_pose(dir_vec, mean_pose, std_pose=None, joint_mask=None):
+        mean_pose = mean_pose[joint_mask.astype(bool)]
+        std_pose = std_pose[joint_mask.astype(bool)]
+
+        return (dir_vec - mean_pose) / std_pose 
+
+    #-end-normalize_pose---------------#
+        
+    #end-------add new from BEAT---------#
+    
     
     def inverse_selection(self, filtered_t, selection_array, n):
         original_shape_t = np.zeros((n, selection_array.size))
@@ -104,88 +429,110 @@ class CustomTrainer(train.BaseTrainer):
             original_shape_t[i, selected_indices] = filtered_t[i]
         return original_shape_t
     
-    def _load_data(self, dict_data):
-        tar_pose_raw = dict_data["pose"]
-        tar_pose = tar_pose_raw[:, :, :165].to(self.rank)
-        tar_contact = tar_pose_raw[:, :, 165:169].to(self.rank)
-        tar_trans = dict_data["trans"].to(self.rank)
-        tar_exps = dict_data["facial"].to(self.rank)
-        in_audio = dict_data["audio"].to(self.rank) 
-        in_word = dict_data["word"].to(self.rank)
-        tar_beta = dict_data["beta"].to(self.rank)
-        tar_id = dict_data["id"].to(self.rank).long()
-        bs, n, j = tar_pose.shape[0], tar_pose.shape[1], self.joints
+    # def _load_data(self, dict_data):
+    #     tar_pose_raw = dict_data["pose"]
+    #     tar_pose = tar_pose_raw[:, :, :165].to(self.rank)
+    #     tar_contact = tar_pose_raw[:, :, 165:169].to(self.rank)
+    #     tar_trans = dict_data["trans"].to(self.rank)
+    #     tar_exps = dict_data["facial"].to(self.rank)
+    #     in_audio = dict_data["audio"].to(self.rank) 
+    #     in_word = dict_data["word"].to(self.rank)
+    #     tar_beta = dict_data["beta"].to(self.rank)
+    #     tar_id = dict_data["id"].to(self.rank).long()
+    #     bs, n, j = tar_pose.shape[0], tar_pose.shape[1], self.joints
 
-        tar_pose_jaw = tar_pose[:, :, 66:69]
-        tar_pose_jaw = rc.axis_angle_to_matrix(tar_pose_jaw.reshape(bs, n, 1, 3))
-        tar_pose_jaw = rc.matrix_to_rotation_6d(tar_pose_jaw).reshape(bs, n, 1*6)
-        tar_pose_face = torch.cat([tar_pose_jaw, tar_exps], dim=2)
+    #     tar_pose_jaw = tar_pose[:, :, 66:69]
+    #     tar_pose_jaw = rc.axis_angle_to_matrix(tar_pose_jaw.reshape(bs, n, 1, 3))
+    #     tar_pose_jaw = rc.matrix_to_rotation_6d(tar_pose_jaw).reshape(bs, n, 1*6)
+    #     tar_pose_face = torch.cat([tar_pose_jaw, tar_exps], dim=2)
 
-        tar_pose_hands = tar_pose[:, :, 25*3:55*3]
-        tar_pose_hands = rc.axis_angle_to_matrix(tar_pose_hands.reshape(bs, n, 30, 3))
-        tar_pose_hands = rc.matri
-        x_to_rotation_6d(tar_pose_hands).reshape(bs, n, 30*6)
+    #     tar_pose_hands = tar_pose[:, :, 25*3:55*3]
+    #     tar_pose_hands = rc.axis_angle_to_matrix(tar_pose_hands.reshape(bs, n, 30, 3))
+    #     tar_pose_hands = rc.matri
+    #     x_to_rotation_6d(tar_pose_hands).reshape(bs, n, 30*6)
 
-        tar_pose_upper = tar_pose[:, :, self.joint_mask_upper.astype(bool)]
-        tar_pose_upper = rc.axis_angle_to_matrix(tar_pose_upper.reshape(bs, n, 13, 3))
-        tar_pose_upper = rc.matrix_to_rotation_6d(tar_pose_upper).reshape(bs, n, 13*6)
+    #     tar_pose_upper = tar_pose[:, :, self.joint_mask_upper.astype(bool)]
+    #     tar_pose_upper = rc.axis_angle_to_matrix(tar_pose_upper.reshape(bs, n, 13, 3))
+    #     tar_pose_upper = rc.matrix_to_rotation_6d(tar_pose_upper).reshape(bs, n, 13*6)
 
-        tar_pose_leg = tar_pose[:, :, self.joint_mask_lower.astype(bool)]
-        tar_pose_leg = rc.axis_angle_to_matrix(tar_pose_leg.reshape(bs, n, 9, 3))
-        tar_pose_leg = rc.matrix_to_rotation_6d(tar_pose_leg).reshape(bs, n, 9*6)
-        tar_pose_lower = torch.cat([tar_pose_leg, tar_trans, tar_contact], dim=2)
+    #     tar_pose_leg = tar_pose[:, :, self.joint_mask_lower.astype(bool)]
+    #     tar_pose_leg = rc.axis_angle_to_matrix(tar_pose_leg.reshape(bs, n, 9, 3))
+    #     tar_pose_leg = rc.matrix_to_rotation_6d(tar_pose_leg).reshape(bs, n, 9*6)
+    #     tar_pose_lower = torch.cat([tar_pose_leg, tar_trans, tar_contact], dim=2)
 
-        # tar_pose = rc.axis_angle_to_matrix(tar_pose.reshape(bs, n, j, 3))
-        # tar_pose = rc.matrix_to_rotation_6d(tar_pose).reshape(bs, n, j*6)
-        tar4dis = torch.cat([tar_pose_jaw, tar_pose_upper, tar_pose_hands, tar_pose_leg], dim=2)
+    #     # tar_pose = rc.axis_angle_to_matrix(tar_pose.reshape(bs, n, j, 3))
+    #     # tar_pose = rc.matrix_to_rotation_6d(tar_pose).reshape(bs, n, j*6)
+    #     tar4dis = torch.cat([tar_pose_jaw, tar_pose_upper, tar_pose_hands, tar_pose_leg], dim=2)
 
-        tar_index_value_face_top = self.vq_model_face.map2index(tar_pose_face) # bs*n/4
-        tar_index_value_upper_top = self.vq_model_upper.map2index(tar_pose_upper) # bs*n/4
-        tar_index_value_hands_top = self.vq_model_hands.map2index(tar_pose_hands) # bs*n/4
-        tar_index_value_lower_top = self.vq_model_lower.map2index(tar_pose_lower) # bs*n/4
+    #     tar_index_value_face_top = self.vq_model_face.map2index(tar_pose_face) # bs*n/4
+    #     tar_index_value_upper_top = self.vq_model_upper.map2index(tar_pose_upper) # bs*n/4
+    #     tar_index_value_hands_top = self.vq_model_hands.map2index(tar_pose_hands) # bs*n/4
+    #     tar_index_value_lower_top = self.vq_model_lower.map2index(tar_pose_lower) # bs*n/4
       
-        latent_face_top = self.vq_model_face.map2latent(tar_pose_face) # bs*n/4
-        latent_upper_top = self.vq_model_upper.map2latent(tar_pose_upper) # bs*n/4
-        latent_hands_top = self.vq_model_hands.map2latent(tar_pose_hands) # bs*n/4
-        latent_lower_top = self.vq_model_lower.map2latent(tar_pose_lower) # bs*n/4
+    #     latent_face_top = self.vq_model_face.map2latent(tar_pose_face) # bs*n/4
+    #     latent_upper_top = self.vq_model_upper.map2latent(tar_pose_upper) # bs*n/4
+    #     latent_hands_top = self.vq_model_hands.map2latent(tar_pose_hands) # bs*n/4
+    #     latent_lower_top = self.vq_model_lower.map2latent(tar_pose_lower) # bs*n/4
         
-        latent_in = torch.cat([latent_upper_top, latent_hands_top, latent_lower_top], dim=2)
+    #     latent_in = torch.cat([latent_upper_top, latent_hands_top, latent_lower_top], dim=2)
         
-        index_in = torch.stack([tar_index_value_upper_top, tar_index_value_hands_top, tar_index_value_lower_top], dim=-1).long()
+    #     index_in = torch.stack([tar_index_value_upper_top, tar_index_value_hands_top, tar_index_value_lower_top], dim=-1).long()
         
-        tar_pose_6d = rc.axis_angle_to_matrix(tar_pose.reshape(bs, n, 55, 3))
-        tar_pose_6d = rc.matrix_to_rotation_6d(tar_pose_6d).reshape(bs, n, 55*6)
-        latent_all = torch.cat([tar_pose_6d, tar_trans, tar_contact], dim=-1)
-        # print(tar_index_value_upper_top.shape, index_in.shape)
-        return {
-            "tar_pose_jaw": tar_pose_jaw,
-            "tar_pose_face": tar_pose_face,
-            "tar_pose_upper": tar_pose_upper,
-            "tar_pose_lower": tar_pose_lower,
-            "tar_pose_hands": tar_pose_hands,
-            'tar_pose_leg': tar_pose_leg,
-            "in_audio": in_audio,
-            "in_word": in_word,
-            "tar_trans": tar_trans,
-            "tar_exps": tar_exps,
-            "tar_beta": tar_beta,
-            "tar_pose": tar_pose,
-            "tar4dis": tar4dis,
-            "tar_index_value_face_top": tar_index_value_face_top,
-            "tar_index_value_upper_top": tar_index_value_upper_top,
-            "tar_index_value_hands_top": tar_index_value_hands_top,
-            "tar_index_value_lower_top": tar_index_value_lower_top,
-            "latent_face_top": latent_face_top,
-            "latent_upper_top": latent_upper_top,
-            "latent_hands_top": latent_hands_top,
-            "latent_lower_top": latent_lower_top,
-            "latent_in":  latent_in,
-            "index_in": index_in,
-            "tar_id": tar_id,
-            "latent_all": latent_all,
-            "tar_pose_6d": tar_pose_6d,
-            "tar_contact": tar_contact,
-        }
+    #     tar_pose_6d = rc.axis_angle_to_matrix(tar_pose.reshape(bs, n, 55, 3))
+    #     tar_pose_6d = rc.matrix_to_rotation_6d(tar_pose_6d).reshape(bs, n, 55*6)
+    #     latent_all = torch.cat([tar_pose_6d, tar_trans, tar_contact], dim=-1)
+    #     # print(tar_index_value_upper_top.shape, index_in.shape)
+    #     return {
+    #         "tar_pose_jaw": tar_pose_jaw,
+    #         "tar_pose_face": tar_pose_face,
+    #         "tar_pose_upper": tar_pose_upper,
+    #         "tar_pose_lower": tar_pose_lower,
+    #         "tar_pose_hands": tar_pose_hands,
+    #         'tar_pose_leg': tar_pose_leg,
+    #         "in_audio": in_audio,
+    #         "in_word": in_word,
+    #         "tar_trans": tar_trans,
+    #         "tar_exps": tar_exps,
+    #         "tar_beta": tar_beta,
+    #         "tar_pose": tar_pose,
+    #         "tar4dis": tar4dis,
+    #         "tar_index_value_face_top": tar_index_value_face_top,
+    #         "tar_index_value_upper_top": tar_index_value_upper_top,
+    #         "tar_index_value_hands_top": tar_index_value_hands_top,
+    #         "tar_index_value_lower_top": tar_index_value_lower_top,
+    #         "latent_face_top": latent_face_top,
+    #         "latent_upper_top": latent_upper_top,
+    #         "latent_hands_top": latent_hands_top,
+    #         "latent_lower_top": latent_lower_top,
+    #         "latent_in":  latent_in,
+    #         "index_in": index_in,
+    #         "tar_id": tar_id,
+    #         "latent_all": latent_all,
+    #         "tar_pose_6d": tar_pose_6d,
+    #         "tar_contact": tar_contact,
+    #     }
+
+    def _load_data(self, idx):
+        with self.lmdb_env.begin(write=False) as txn:
+            key = "{:005}".format(idx).encode("ascii")
+            sample = txn.get(key)
+            sample = pyarrow.deserialize(sample)
+            tar_pose, in_audio, in_facial, in_word, emo, sem, vid = sample
+            vid = torch.from_numpy(vid).int()
+            emo = torch.from_numpy(emo).int()
+            sem = torch.from_numpy(sem).float() 
+            in_audio = torch.from_numpy(in_audio).float() 
+            in_word = torch.from_numpy(in_word).int()  
+            if self.loader_type == "test":
+                tar_pose = torch.from_numpy(tar_pose).float()
+                in_facial = torch.from_numpy(in_facial).float()
+                            
+            else:
+                tar_pose = torch.from_numpy(tar_pose).reshape((tar_pose.shape[0], -1)).float()
+                in_facial = torch.from_numpy(in_facial).reshape((in_facial.shape[0], -1)).float()
+            return {"pose":tar_pose, "audio":in_audio, "facial":in_facial, "word":in_word, "id":vid, "emo":emo, "sem":sem}
+
+    
     
     def _g_training(self, loaded_data, use_adv, mode="train", epoch=0):
         bs, n, j = loaded_data["tar_pose"].shape[0], loaded_data["tar_pose"].shape[1], self.joints 
@@ -198,7 +545,7 @@ class CustomTrainer(train.BaseTrainer):
             in_id = loaded_data['tar_id'], in_motion = loaded_data['latent_all'],
             use_attentions = True)
         g_loss_final = 0
-        loss_latent_face = self.reclatent_loss(net_out_val["rec_face"], loaded_data["latent_face_top"])
+        loss_latent_face = self.reclatent_loss(net_out_val["rec_face"], loaded_data["latent_face_top"]) # reclatent_loss is MSELoss
         loss_latent_lower = self.reclatent_loss(net_out_val["rec_lower"], loaded_data["latent_lower_top"])
         loss_latent_hands = self.reclatent_loss(net_out_val["rec_hands"], loaded_data["latent_hands_top"])
         loss_latent_upper = self.reclatent_loss(net_out_val["rec_upper"], loaded_data["latent_upper_top"])
@@ -301,14 +648,17 @@ class CustomTrainer(train.BaseTrainer):
             rec_pose_upper = rc.rotation_6d_to_matrix(rec_pose_upper)#
             rec_pose_upper = rc.matrix_to_axis_angle(rec_pose_upper).reshape(bs*n, 13*3)
             rec_pose_upper_recover = self.inverse_selection_tensor(rec_pose_upper, self.joint_mask_upper, bs*n)
-            rec_pose_lower = rec_pose_legs.reshape(bs, n, 9, 6)
+            
+            rec_pose_lower = rec_pose_legs.reshape(bs, n, 12, 6)
             rec_pose_lower = rc.rotation_6d_to_matrix(rec_pose_lower)
             rec_pose_lower = rc.matrix_to_axis_angle(rec_pose_lower).reshape(bs*n, 9*3)
             rec_pose_lower_recover = self.inverse_selection_tensor(rec_pose_lower, self.joint_mask_lower, bs*n)
-            rec_pose_hands = rec_hands.reshape(bs, n, 30, 6)
+            
+            rec_pose_hands = rec_hands.reshape(bs, n, 48, 6)
             rec_pose_hands = rc.rotation_6d_to_matrix(rec_pose_hands)
             rec_pose_hands = rc.matrix_to_axis_angle(rec_pose_hands).reshape(bs*n, 30*3)
             rec_pose_hands_recover = self.inverse_selection_tensor(rec_pose_hands, self.joint_mask_hands, bs*n)
+            
             rec_pose_jaw = rec_pose_jaw.reshape(bs*n, 6)
             rec_pose_jaw = rc.rotation_6d_to_matrix(rec_pose_jaw)
             rec_pose_jaw = rc.matrix_to_axis_angle(rec_pose_jaw).reshape(bs*n, 1*3)
@@ -601,8 +951,10 @@ class CustomTrainer(train.BaseTrainer):
             t_data = time.time() - t_start
     
             self.opt.zero_grad()
+            
             g_loss_final = 0
             g_loss_final += self._g_training(loaded_data, use_adv, 'train', epoch)
+            
             #with torch.autograd.detect_anomaly():
             g_loss_final.backward()
             if self.args.grad_norm != 0: 
@@ -618,6 +970,8 @@ class CustomTrainer(train.BaseTrainer):
                 self.train_recording(epoch, its, t_data, t_train, mem_cost, lr_g)   
             if self.args.debug:
                 if its == 1: break
+
+        
         self.opt_s.step(epoch)
         # self.opt_d_s.step(epoch) 
     

@@ -64,7 +64,7 @@ lr_base: 1e-4
 decay_epochs: 99
 model: motion_representation
 g_name: VQVAEConvZero
-trainer: aeskeleton_lowerfoot7 # change to work with skeleton
+trainer: aeskeleton_lowerfoot # change to work with skeleton
 ##---------------------------##
 
 pretrain: True
