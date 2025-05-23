@@ -67,9 +67,9 @@ class CustomDataset(Dataset):
         #     for joint_name in self.tar_joint_list:
         #         self.joint_mask[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
         # else:
-        self.joints = len(list(self.ori_joint_list.keys()))
-        logger.info(f"SELF JOINT MASK KEY: {self.ori_joint_list.keys()}")
-        logger.info(f"SELF JOINT: {self.joints}")
+        self.joints = len(list(self.ori_joint_list.keys())) + 1
+        # logger.info(f"SELF JOINT MASK KEY: {self.ori_joint_list.keys()}")
+        # logger.info(f"SELF JOINT: {self.joints}")
         self.joint_mask = np.zeros(self.joints*3)
         for joint_name in self.tar_joint_list:
             if joint_name == "Hips":
@@ -91,7 +91,7 @@ class CustomDataset(Dataset):
         self.max_length = int(self.pose_length * self.multi_length_training[-1])
         
         if self.word_rep is not None:
-            with open(f"{args.root_path}{args.train_data_path[:-6]}vocab.pkl", 'rb') as f:
+            with open(f"{args.root_path}{args.train_data_path[:-11]}vocab.pkl", 'rb') as f:
                 self.lang_model = pickle.load(f)
         preloaded_dir = self.data_dir + f"{self.pose_rep}_cache"
         ##----------------------cả beat_sep_lower.py và beat_sep.py đều không dùng đoạn này-------------##
@@ -180,10 +180,14 @@ class CustomDataset(Dataset):
             
             id_pose = pose_file.split("/")[-1][:-4] #1_wayne_0_1_1
             logger.info(colored(f"# ---- Building cache for Pose   {id_pose} ---- #", "blue"))
-            
+            print(f"pose_file: {pose_file}")
             with open(pose_file, "r") as pose_data:
+                # print(f"pose_file: {pose_files}")
                 for j, line in enumerate(pose_data.readlines()):
+                    # print(f"j, line: {j}, {line}")
                     data = np.fromstring(line, dtype=float, sep=" ") # 1*27 e.g., 27 rotation 
+                    # logger.info(f"beat_skeleton - cache_generation - data: {data}, {data.shape}")
+                    # print(f"data: {data}")
                     data =  np.array(data)
                     # logger.info(f"DATA: {data} {len(data)}")
                     # logger.info(f"JOINT MASK: {self.joint_mask} {len(self.joint_mask)}")
@@ -215,6 +219,7 @@ class CustomDataset(Dataset):
 
             if self.audio_rep is not None:
                 logger.info(f"# ---- Building cache for Audio  {id_pose} and Pose {id_pose} ---- #")
+                print(f"pose_file: {pose_file}")
                 audio_file = pose_file.replace(self.pose_rep, self.audio_rep).replace("bvh", "npy")
                 try:
                     audio_each_file = np.load(audio_file)
@@ -346,8 +351,8 @@ class CustomDataset(Dataset):
             for type, n_filtered in n_filtered_out.items():
                 logger.info("{}: {}".format(type, n_filtered))
                 n_total_filtered += n_filtered
-            # logger.info(colored("no. of excluded samples: {} ({:.1f}%)".format(
-            #     n_total_filtered, 100 * n_total_filtered / (txn.stat()["entries"] + n_total_filtered)), "cyan"))
+            logger.info(colored("no. of excluded samples: {} ({:.1f}%)".format(
+                n_total_filtered, 100 * n_total_filtered / (txn.stat()["entries"] + n_total_filtered)), "cyan"))
         dst_lmdb_env.sync()
         dst_lmdb_env.close()
     

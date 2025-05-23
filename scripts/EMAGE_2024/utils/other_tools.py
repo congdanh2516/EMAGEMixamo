@@ -853,12 +853,12 @@ def load_checkpoints(model, save_path, load_name='model'):
             flag=True
     if flag: 
         try:
-            model.load_state_dict(new_weights)
+            model.load_state_dict(new_weights, strict=False)
         except:
             #print(states['model_state'])
-            model.load_state_dict(states['model_state'])
+            model.load_state_dict(states['model_state'], strict=False)
     else:
-        model.load_state_dict(states['model_state'])
+        model.load_state_dict(states['model_state'], strict=False)
     logger.info(f"load self-pretrained checkpoints for {load_name}")
 
 def model_complexity(model, args):

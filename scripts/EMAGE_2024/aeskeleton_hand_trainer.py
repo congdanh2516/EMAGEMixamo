@@ -33,6 +33,7 @@ class CustomTrainer(train.BaseTrainer):
     """
     def __init__(self, args):
         super().__init__(args)
+        # print(f"VAR ARGS: {dir(args)}")
 
         ##--------------Copy from BEAT2022, ae_trainer.py------------##
         self.g_name = args.g_name
@@ -149,12 +150,18 @@ class CustomTrainer(train.BaseTrainer):
         self.opt_s.step(epoch)
                     
     def val(self, epoch):
+        # print(f"HAND VAL {epoch}")
         self.model.eval()
         t_start = time.time()
         with torch.no_grad():
             its_len = len(self.val_loader)
+            first_batch = next(iter(self.val_loader))
+            # print(f"VAL_LOADER {first_batch['pose'].shape}")
             for its, dict_data in enumerate(self.val_loader):
                 tar_pose = dict_data["pose"]
+
+                # print(f"TAR POSE HAND SAHPE: {tar_pose.shape}")
+                
                 tar_pose = tar_pose.cuda()         
                 t_data = time.time() - t_start 
 
@@ -185,15 +192,16 @@ class CustomTrainer(train.BaseTrainer):
             ##--------------Copy from BEAT2022, ae_trainer.py------------##
             
     def test(self, epoch):
-        results_save_path = self.checkpoint_path + f"/{epoch}/"
+        results_save_path = self.checkpoint_path + f"{epoch}/"
         if os.path.exists(results_save_path): 
             return 0
         os.makedirs(results_save_path)
+        print(f"results_save_path: {results_save_path}")
         start_time = time.time()
         total_length = 0
 
         ##-------------------Copy from BEAT2022, ae_trainer.py------------##
-        test_seq_list = os.listdir(self.test_demo)
+        test_seq_list = os.listdir(self.test_demo) # number of data samples in test_copy
         test_seq_list.sort()
         ##-------------------Copy from BEAT2022, ae_trainer.py------------##
         self.model.eval()

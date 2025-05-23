@@ -1,16 +1,45 @@
 is_train: True
 root_path: /data/nas07/PersonalData/danh/PantoMatrix
-out_path: ./outputs/audio2pose/ 
-train_data_path: /beat_4english_30_full/train_copy/ 
-val_data_path: /beat_4english_30_full/val_copy/ 
-test_data_path: /beat_4english_30_full/test_copy/ 
-mean_pose_path: /beat_4english_30_full/train_copy/
-std_pose_path: /beat_4english_30_full/train_copy/
+out_path: ./outputs/audio2poseglobal/ 
+# train_data_path: /beat_4english_30_full/train_copy/ 
+# val_data_path: /beat_4english_30_full/val_copy/ 
+# test_data_path: /beat_4english_30_full/test_copy/ 
+# mean_pose_path: /beat_4english_30_full/train_copy/
+# std_pose_path: /beat_4english_30_full/train_copy/
+
+# train_data_path: /beat_4english_30_full/train_clon/ 
+# val_data_path: /beat_4english_30_full/val_clon/ 
+# test_data_path: /beat_4english_30_full/test_clon/ 
+# mean_pose_path: /beat_4english_30_full/train_clon/
+# std_pose_path: /beat_4english_30_full/train_clon/
+
+# train_data_path: /beat_4english_30_full7/train_copy/ 
+# val_data_path: /beat_4english_30_full7/val_copy/ 
+# test_data_path: /beat_4english_30_full7/test_copy/ 
+# mean_pose_path: /beat_4english_30_full7/train_copy/
+# std_pose_path: /beat_4english_30_full7/train_copy/
+
+# train_data_path: /beat_4english_30_full7_partial/train_copy/ 
+# val_data_path: /beat_4english_30_full7_partial/val_copy/ 
+# test_data_path: /beat_4english_30_full7_partial/test_copy/ 
+# mean_pose_path: /beat_4english_30_full7_partial/train_copy/
+# std_pose_path: /beat_4english_30_full7_partial/train_copy/
+
+train_data_path: /beat_4english_30_full8/train_copy/ 
+val_data_path: /beat_4english_30_full8/val_copy/ 
+test_data_path: /beat_4english_30_full8/test_copy/ 
+mean_pose_path: /beat_4english_30_full8/train_copy/
+std_pose_path: /beat_4english_30_full8/train_copy/
+
+# train_data_path: /beat_4english_30_full9/train_copy/ 
+# val_data_path: /beat_4english_30_full9/val_copy/ 
+# test_data_path: /beat_4english_30_full9/test_copy/ 
+# mean_pose_path: /beat_4english_30_full9/train_copy/
+# std_pose_path: /beat_4english_30_full9/train_copy/
 
 stat: wandb
-dataset: beat_skeleton
-new_cache: False
-
+dataset: beat_skeleton_new
+new_cache: True
 pose_rep: skeleton_cache
 
 # motion config
@@ -28,10 +57,10 @@ project: emage_skeleton
 
 # data_path: ./BEAT2/beat_english_v2.0.0/
 
-e_path:  weights/AESKConv_240_100.bin
+# e_path:  weights/AESKConv_240_100.bin
 eval_model: motion_representation
 e_name: VAESKConv
-test_ckpt: ./EMAGE/emage_240.bin
+# test_ckpt: ./EMAGE/emage_240.bin
 data_path_1: ./EMAGE/
 
 
@@ -53,7 +82,8 @@ pose_length: 64
 stride: 20
 
 # data config
-# training_speakers: [2] #[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]
+training_speakers: [2]
+# [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30]
 # additional_data: False
 # cache_path: datasets/beat_cache/beat_smplx_en_emage/
 
@@ -74,13 +104,18 @@ m_pre_encoder: null
 m_encoder: null
 m_fix_pre: False
 #------------------------------------#
-
+# audio_rep: wave16k
+facial_rep: facial52
+speaker_id: id
+word_rep: text
+sem_rep: sem
+emo_rep: emo
 # audio config - removing
-# audio_rep: onset+amplitude
+audio_rep: onset+amplitude
 # audio_sr: 16000
 # audio_fps: 16000
 # audio_norm: False
-# audio_f: 256
+audio_f: 256
 # removing--------------#
 
 # a_pre_encoder: tcn_camn
@@ -115,7 +150,7 @@ id_rep: onehot
 speaker_f: 0
 
 # model config
-batch_size: 64
+batch_size: 8
 # warmup_epochs: 1
 # warmup_lr: 1e-6
 lr_base: 5e-4
@@ -127,8 +162,8 @@ n_layer: 1
  
 rec_weight: 1
 grad_norm: 0.99
-epochs: 400
-test_period: 20
+epochs: 100
+test_period: 25
 ll: 3
 lf: 3
 lu: 3

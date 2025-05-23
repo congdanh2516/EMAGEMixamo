@@ -1,15 +1,33 @@
 is_train: True
 root_path: /data/nas07/PersonalData/danh/PantoMatrix
 out_path: ./outputs/audio2pose/ 
-train_data_path: /beat_4english_30_full/train_copy/ 
-val_data_path: /beat_4english_30_full/val_copy/ 
-test_data_path: /beat_4english_30_full/test_copy/ 
-mean_pose_path: /beat_4english_30_full/train_copy/
-std_pose_path: /beat_4english_30_full/train_copy/
+# train_data_path: /beat_4english_30_full/train_copy/ 
+# val_data_path: /beat_4english_30_full/val_copy/ 
+# test_data_path: /beat_4english_30_full/test_copy/ 
+# mean_pose_path: /beat_4english_30_full/train_copy/
+# std_pose_path: /beat_4english_30_full/train_copy/
+
+# train_data_path: /beat_4english_30_full/train_clon/ 
+# val_data_path: /beat_4english_30_full/val_clon/ 
+# test_data_path: /beat_4english_30_full/test_clon/ 
+# mean_pose_path: /beat_4english_30_full/train_clon/
+# std_pose_path: /beat_4english_30_full/train_clon/
+
+# train_data_path: /beat_4english_30_full7/train_copy/ 
+# val_data_path: /beat_4english_30_full7/val_copy/ 
+# test_data_path: /beat_4english_30_full7/test_copy/ 
+# mean_pose_path: /beat_4english_30_full7/train_copy/
+# std_pose_path: /beat_4english_30_full7/train_copy/
+
+train_data_path: /beat_4english_30_full8/train_copy/ 
+val_data_path: /beat_4english_30_full8/val_copy/ 
+test_data_path: /beat_4english_30_full8/test_copy/ 
+mean_pose_path: /beat_4english_30_full8/train_copy/
+std_pose_path: /beat_4english_30_full8/train_copy/
 
 stat: wandb
 dataset: beat_skeleton
-new_cache: True
+new_cache: False 
 
 # ori_joints: beat_smplx_joints
 # tar_joints: beat_smplx_upper
@@ -52,9 +70,9 @@ facial_dims: 51 # change to work with ARKit(52-tongue=51)
 ##-----Keep unchanged-------##
 word_index_num: 11195
 word_dims: 300
-batch_size: 512
-lr_base: 1e-4
-decay_epochs: 9999
+batch_size: 1
+lr_base: 3e-4
+decay_epochs: 780
 model: motion_representation
 g_name: VQVAEConvZero
 trainer: aeskeleton_hand # change to work with skeleton
@@ -93,7 +111,7 @@ rec_ver_weight: 1
 #iwa_weight: 0
 #fusion_mode: sum
 # grad_norm: 1
-epochs: 2
+epochs: 4
 test_period: 1
 
 ## Thêm vào

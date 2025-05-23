@@ -35,6 +35,14 @@ class BaseTrainer(object):
         self.gpus = len(args.gpus)
         self.pose_version = args.pose_version
         print("gpus:", self.gpus)
+
+        # add new ----- begin
+        self.best_epochs = {
+            'fid_val': [np.inf, 0],
+            'rec_val': [np.inf, 0],
+        }
+        # add new ----- end 
+        
         self.checkpoint_path = args.out_path + "custom/" + args.name + args.notes + "/" #wandb.run.dir #args.cache_path+args.out_path+"/"+args.name
         if self.rank==0:
             if self.args.stat == "ts":
@@ -143,11 +151,13 @@ class BaseTrainer(object):
                 self.eval_copy = getattr(eval_model_module, args.e_name)(args).to(self.rank) 
             else:
                 self.eval_model = getattr(eval_model_module, args.e_name)(args)
+                # print(f"self.eval_model: {self.eval_model}")
                 self.eval_copy = getattr(eval_model_module, args.e_name)(args).to(self.rank)
                 
             #if self.rank == 0:
-            other_tools.load_checkpoints(self.eval_copy, args.data_path+args.e_path, args.e_name)
-            other_tools.load_checkpoints(self.eval_model, args.data_path+args.e_path, args.e_name)
+            # /data/nas07/PersonalData/danh/PantoMatrix/beat_4english_30_full/ae_300_all_data_v0.2.1.bin
+            other_tools.load_checkpoints(self.eval_copy, "./BEAT2/beat_english_v2.0.0/weights/AESKConv_240_100.bin", args.e_name)
+            other_tools.load_checkpoints(self.eval_model, "./BEAT2/beat_english_v2.0.0/weights/AESKConv_240_100.bin", args.e_name)
             if self.args.ddp:
                 self.eval_model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.eval_model, process_group)   
                 self.eval_model = DDP(self.eval_model, device_ids=[self.rank], output_device=self.rank,
@@ -225,26 +235,52 @@ class BaseTrainer(object):
             logger.info(pstr)
 
 
+    def train_recording(self, epoch, its, t_data, t_train, mem_cost, lr_g, lr_d=None):
+        pstr = "[%03d][%03d/%03d]  "%(epoch, its, self.train_length)
+        for name, states in self.tracker.loss_meters.items():
+            metric = states['train']
+            if metric.count > 0:
+                pstr += "{}: {:.3f}\t".format(name, metric.avg)
+                self.writer.add_scalar(f"train/{name}", metric.avg, epoch*self.train_length+its) if self.args.stat == "ts" else wandb.log({name: metric.avg}, step=epoch*self.train_length+its)
+        pstr += "glr: {:.1e}\t".format(lr_g)
+        self.writer.add_scalar("lr/glr", lr_g, epoch*self.train_length+its) if self.args.stat == "ts" else wandb.log({'glr': lr_g}, step=epoch*self.train_length+its)
+        if lr_d is not None:
+            pstr += "dlr: {:.1e}\t".format(lr_d)
+            self.writer.add_scalar("lr/dlr", lr_d, epoch*self.train_length+its) if self.args.stat == "ts" else wandb.log({'dlr': lr_d}, step=epoch*self.train_length+its)
+        pstr += "dtime: %04d\t"%(t_data*1000)        
+        pstr += "ntime: %04d\t"%(t_train*1000)
+        pstr += "mem: {:.2f} ".format(mem_cost*len(self.args.gpus))
+        logger.info(pstr)
+        
 ## Code from BEAT
     def val_recording(self, epoch, metrics):
         if self.rank == 0: 
             pstr_curr = "Curr info >>>>  "
             pstr_best = "Best info >>>>  "
 
+            # print(f"Metrics: {metrics}")
+            # print(f"\nMetrics: {metrics.items()}")
+            
             for name, metric in metrics.items():
+                # print(f"name: {name}")
                 if "val" in name:
                     if metric.count > 0:
+                        # print(f"metric.count: {metric.count}")
                         pstr_curr += "{}: {:.3f}     \t".format(metric.name, metric.avg)
+                        # print(f"metric name/avg: {metric.name}, {metric.avg}") # rec_val, 16.447102122836643
                         wandb.log({metric.name: metric.avg}, step=epoch*self.train_length)
+                        # print(f"self.best_epochs: {self.best_epochs}")
                         if metric.avg < self.best_epochs[metric.name][0]:
                             self.best_epochs[metric.name][0] = metric.avg
                             self.best_epochs[metric.name][1] = epoch
                             other_tools.save_checkpoints(os.path.join(self.checkpoint_path, f"{metric.name}.bin"), self.model, opt=None, epoch=None, lrs=None)        
                         metric.reset()
-            for k, v in self.best_epochs.items():
+            for k, v in self.best_epochs.items(): # v[0]: fid_val, rec_val
                 pstr_best += "{}: {:.3f}({:03d})\t".format(k, v[0], v[1])
-            logger.info(pstr_curr)
-            logger.info(pstr_best)  
+                # print(f"l, v[0], v[1]: {k}, {v[0]}, {v[1]}")
+                # print(pstr_best)
+            logger.info(f"{pstr_curr}") # Curr info >>>>
+            logger.info(f"{pstr_best}") # Best info >>>>
    
     def test_recording(self, dict_name, value, epoch):
         self.tracker.update_meter(dict_name, "test", value)
@@ -262,15 +298,22 @@ def main_worker(rank, world_size, args):
       
     # return one intance of trainer
     trainer = __import__(f"{args.trainer}_trainer", fromlist=["something"]).CustomTrainer(args) if args.trainer != "base" else BaseTrainer(args) 
-     
+
     logger.info("Training from starch ...")          
     start_time = time.time()
     for epoch in range(args.epochs):
         logger.info(f"NUMBER OF EPOCH: {args.epochs}")
         # trainer.test(epoch)
 
+        # print(f"EPOCH: {epoch}")
+
         if trainer.ddp: trainer.val_loader.sampler.set_epoch(epoch)
+        # print(f"self.eval_model: {self.eval_model}")
+        # d
+        # print(f"epoch: {epoch}")
+        # print("---------")
         trainer.val(epoch)
+        # print("---------")
         epoch_time = time.time()-start_time
         if trainer.rank == 0: logger.info("Time info >>>>  elapsed: %.2f mins\t"%(epoch_time/60)+"remain: %.2f mins"%((args.epochs/(epoch+1e-7)-1)*epoch_time/60))
         if trainer.ddp: trainer.train_loader.sampler.set_epoch(epoch)

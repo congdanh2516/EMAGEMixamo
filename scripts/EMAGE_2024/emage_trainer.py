@@ -123,8 +123,7 @@ class CustomTrainer(train.BaseTrainer):
 
         tar_pose_hands = tar_pose[:, :, 25*3:55*3]
         tar_pose_hands = rc.axis_angle_to_matrix(tar_pose_hands.reshape(bs, n, 30, 3))
-        tar_pose_hands = rc.matri
-        x_to_rotation_6d(tar_pose_hands).reshape(bs, n, 30*6)
+        tar_pose_hands = rc.matrix_to_rotation_6d(tar_pose_hands).reshape(bs, n, 30*6)
 
         tar_pose_upper = tar_pose[:, :, self.joint_mask_upper.astype(bool)]
         tar_pose_upper = rc.axis_angle_to_matrix(tar_pose_upper.reshape(bs, n, 13, 3))
@@ -135,8 +134,6 @@ class CustomTrainer(train.BaseTrainer):
         tar_pose_leg = rc.matrix_to_rotation_6d(tar_pose_leg).reshape(bs, n, 9*6)
         tar_pose_lower = torch.cat([tar_pose_leg, tar_trans, tar_contact], dim=2)
 
-        # tar_pose = rc.axis_angle_to_matrix(tar_pose.reshape(bs, n, j, 3))
-        # tar_pose = rc.matrix_to_rotation_6d(tar_pose).reshape(bs, n, j*6)
         tar4dis = torch.cat([tar_pose_jaw, tar_pose_upper, tar_pose_hands, tar_pose_leg], dim=2)
 
         tar_index_value_face_top = self.vq_model_face.map2index(tar_pose_face) # bs*n/4
@@ -156,7 +153,7 @@ class CustomTrainer(train.BaseTrainer):
         tar_pose_6d = rc.axis_angle_to_matrix(tar_pose.reshape(bs, n, 55, 3))
         tar_pose_6d = rc.matrix_to_rotation_6d(tar_pose_6d).reshape(bs, n, 55*6)
         latent_all = torch.cat([tar_pose_6d, tar_trans, tar_contact], dim=-1)
-        # print(tar_index_value_upper_top.shape, index_in.shape)
+        
         return {
             "tar_pose_jaw": tar_pose_jaw,
             "tar_pose_face": tar_pose_face,
@@ -312,6 +309,7 @@ class CustomTrainer(train.BaseTrainer):
             rec_pose_jaw = rec_pose_jaw.reshape(bs*n, 6)
             rec_pose_jaw = rc.rotation_6d_to_matrix(rec_pose_jaw)
             rec_pose_jaw = rc.matrix_to_axis_angle(rec_pose_jaw).reshape(bs*n, 1*3)
+            
             rec_pose = rec_pose_upper_recover + rec_pose_lower_recover + rec_pose_hands_recover 
             rec_pose[:, 66:69] = rec_pose_jaw
             # print(rec_pose.shape, tar_pose.shape)
@@ -555,6 +553,7 @@ class CustomTrainer(train.BaseTrainer):
         rec_pose_jaw = rec_pose_jaw.reshape(bs*n, 6)
         rec_pose_jaw = rc.rotation_6d_to_matrix(rec_pose_jaw)
         rec_pose_jaw = rc.matrix_to_axis_angle(rec_pose_jaw).reshape(bs*n, 1*3)
+        
         rec_pose = rec_pose_upper_recover + rec_pose_lower_recover + rec_pose_hands_recover 
         rec_pose[:, 66:69] = rec_pose_jaw
 

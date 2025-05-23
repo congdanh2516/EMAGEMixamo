@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from .utils.layer import BasicBlock
 from .motion_encoder import * 
+import torch.nn.functional as F
 
 
 class WavEncoder(nn.Module):
@@ -21,10 +22,12 @@ class WavEncoder(nn.Module):
                 BasicBlock(out_dim//2, out_dim, 15, 3,  first_dilation=0,downsample=True),     
             )
     def forward(self, wav_data):
+        # print(f"wav_data: {wav_data.dim()}")
         if wav_data.dim() == 2:
             wav_data = wav_data.unsqueeze(1) 
         else:
             wav_data = wav_data.transpose(1, 2)
+        # print(f"after transposing wav_data: {wav_data.shape}")
         out = self.feat_extractor(wav_data)
         return out.transpose(1, 2)
 
@@ -66,15 +69,19 @@ class MAGE_Transformer(nn.Module):
         super(MAGE_Transformer, self).__init__()
         self.args = args   
         # with open(f"{args.data_path}weights/vocab.pkl", 'rb') as f:
+        # print(f"args.train_data_path[:-11]: {args.train_data_path[:-11]}")
         with open(f"{args.root_path}{args.train_data_path[:-11]}vocab.pkl", 'rb') as f:
             self.lang_model = pickle.load(f)
             pre_trained_embedding = self.lang_model.word_embedding_weights
+            # print(f"pre_trained_embedding: {pre_trained_embedding}")
         self.text_pre_encoder_face = nn.Embedding.from_pretrained(torch.FloatTensor(pre_trained_embedding),freeze=args.t_fix_pre)
         self.text_encoder_face = nn.Linear(300, args.audio_f) 
         self.text_encoder_face = nn.Linear(300, args.audio_f) 
         self.text_pre_encoder_body = nn.Embedding.from_pretrained(torch.FloatTensor(pre_trained_embedding),freeze=args.t_fix_pre)
         self.text_encoder_body = nn.Linear(300, args.audio_f) 
         self.text_encoder_body = nn.Linear(300, args.audio_f) 
+
+        # print(f"This is line 79 models/emage.py audio_f = {args.audio_f}")
 
         self.audio_pre_encoder_face = WavEncoder(args.audio_f, audio_in=2)
         self.audio_pre_encoder_body = WavEncoder(args.audio_f, audio_in=2)
@@ -127,7 +134,8 @@ class MAGE_Transformer(nn.Module):
         self.hands_classifier = MLP(self.args.vae_codebook_size, args.hidden_size, self.args.vae_codebook_size)
         self.lower_classifier = MLP(self.args.vae_codebook_size, args.hidden_size, self.args.vae_codebook_size)
 
-        self.mask_embeddings = nn.Parameter(torch.zeros(1, 1, self.args.pose_dims+3+4))
+        self.mask_embeddings = nn.Parameter(torch.zeros(1, 1, self.args.pose_dims)) #+3+4 #self.args.pose_dims+3+4
+        # print(f"INITIAL self.mask_embeddings.shape: {self.mask_embeddings.shape}")
         self.motion_down_upper = nn.Linear(args.hidden_size, self.args.vae_codebook_size)
         self.motion_down_hands = nn.Linear(args.hidden_size, self.args.vae_codebook_size)
         self.motion_down_lower = nn.Linear(args.hidden_size, self.args.vae_codebook_size)
@@ -141,15 +149,28 @@ class MAGE_Transformer(nn.Module):
 
     def _reset_parameters(self):
         nn.init.normal_(self.mask_embeddings, 0, self.args.hidden_size ** -0.5)
+        # print(f"RESET self.mask_embeddings.shape: {self.mask_embeddings.shape}")
     
     def forward(self, in_audio=None, in_word=None, mask=None, is_test=None, in_motion=None, use_attentions=True, use_word=True, in_id = None):
+        # print(f"IN_MOTION IN FORWARD before: {in_motion}, {in_motion.shape}")
+        # print(f"IN MAGE_Transformer - in_audio.shape: {in_audio.shape}, {in_motion.shape}")
         in_word_face = self.text_pre_encoder_face(in_word)
+        # print(f"in_word_face: {in_word_face}")
         in_word_face = self.text_encoder_face(in_word_face)
+        # print(f"in_word_face: {in_word_face}")
         in_word_body = self.text_pre_encoder_body(in_word)
+        # print(f"in_word_body: {in_word_body}")
         in_word_body = self.text_encoder_body(in_word_body)
+        # print(f"in_word_body: {in_word_body}")
         bs, t, c = in_word_face.shape
+        # print(f"bs, t, c: {bs}, {t}, {c}")
+        # print(f"in_audio.shape: {in_audio.shape}")
         in_audio_face = self.audio_pre_encoder_face(in_audio)
         in_audio_body = self.audio_pre_encoder_body(in_audio)
+        # print(f"in_audio_face: {in_audio_face}")
+        # print(f"in_audio_body: {in_audio_body}")
+        # print(f"in_audio_face.shape, in_motion.shape: {in_audio_face.shape}, {in_motion.shape}") # torch.Size([8, 64, 256]), torch.Size([8, 64, 225])
+        # print(f"{in_audio_face.shape[1]}, {in_audio_face.shape[1]}") # 64, 64
         if in_audio_face.shape[1] != in_motion.shape[1]:
             diff_length = in_motion.shape[1]- in_audio_face.shape[1]
             if diff_length < 0:
@@ -159,8 +180,12 @@ class MAGE_Transformer(nn.Module):
                 in_audio_face = torch.cat((in_audio_face, in_audio_face[:,-diff_length:]),1)
                 in_audio_body = torch.cat((in_audio_body, in_audio_body[:,-diff_length:]),1)
 
+        # print(f"line 183 in_audio_face: {in_audio_face}, {in_audio_face.shape}")
+        # print(f"line 184 in_audio_body: {in_audio_body}, {in_audio_body.shape}")
+
         if use_attentions:           
             alpha_at_face = torch.cat([in_word_face, in_audio_face], dim=-1).reshape(bs, t, c*2)
+            # print(f"alpha_at_face: {alpha_at_face}")
             alpha_at_face = self.at_attn_face(alpha_at_face).reshape(bs, t, c, 2)
             alpha_at_face = alpha_at_face.softmax(dim=-1)
             fusion_face = in_word_face * alpha_at_face[:,:,:,1] + in_audio_face * alpha_at_face[:,:,:,0]
@@ -171,10 +196,24 @@ class MAGE_Transformer(nn.Module):
         else:
             fusion_face = in_word_face + in_audio_face
             fusion_body = in_word_body + in_audio_body
-        
+
+        # in_motion = F.pad(in_motion, (0, 7)) 
+
+        # print(f"IN_MOTION IN FORWARD after: {in_motion.shape}") 
+        # print(f"self.mask_embeddings.shape, in_motion.shape: {self.mask_embeddings.shape}, {in_motion.shape}")
+
         masked_embeddings = self.mask_embeddings.expand_as(in_motion)
+        # print(f"masked_embeddings: {masked_embeddings}")
+        # masked_embeddings = self.mask_embeddings[:, :, :223]
+        # masked_embeddings = masked_embeddings.expand_as(in_motion)
+        # print(f"masked_embeddings.shape, in_motion.shape, mask.shape: {masked_embeddings.shape}, {in_motion.shape}, {mask.shape}")
+        # print(f"mask: {mask}, {mask.shape}")
+        # print(f"masked_embeddings: {masked_embeddings}, {masked_embeddings.shape}")
+        # print(f"in_motion: {in_motion}, {in_motion.shape}")
         masked_motion = torch.where(mask == 1, masked_embeddings, in_motion) # bs, t, 256 
+        # print(f"masked_motion: {masked_motion}, {masked_motion.shape}")
         body_hint = self.motion_encoder(masked_motion) # bs t 256
+        # print(f"body_hint: {body_hint}, {body_hint.shape}")
         speaker_embedding_face = self.spearker_encoder_face(in_id).squeeze(2)
         speaker_embedding_body = self.spearker_encoder_body(in_id).squeeze(2)
 
@@ -229,6 +268,8 @@ class MAGE_Transformer(nn.Module):
         cls_lower = self.lower_classifier(lower_latent)
         cls_upper = self.upper_classifier(upper_latent)
         cls_hands = self.hands_classifier(hands_latent)
+
+        # print(f"rec_face in MAGE: {face_latent}")
 
         return {
             "rec_face":face_latent,

@@ -102,9 +102,11 @@ class VQEncoderV6(nn.Module):
             channels.append(args.vae_length)
         
         input_size = args.vae_test_dim
+        # print(f"MOTION_ENCODER_args.vae_test_dim: {args.vae_test_dim}")
+        # print(f"motion_encoder_args: {args}")
         assert len(channels) == n_down
         layers = [
-            nn.Conv1d(input_size, channels[0], 3, 1, 1),
+            nn.Conv1d(225, channels[0], 3, 1, 1), # 225 = input_size
             nn.LeakyReLU(0.2, inplace=True),
             ResBlock(channels[0]),
         ]
@@ -121,7 +123,9 @@ class VQEncoderV6(nn.Module):
         # self.out_net.apply(init_weight)
     def forward(self, inputs):
         inputs = inputs.permute(0, 2, 1)
+        # print(f"motion_encoder_inputs.shape: {inputs.shape}, {self.main}")
         outputs = self.main(inputs).permute(0, 2, 1)
+        # print(f"motion_encoder_VQEncoderV6_outputs: {outputs}")
         return outputs
 
 class VQEncoderV4(nn.Module):
@@ -718,6 +722,10 @@ class LocalEncoder(nn.Module):
 
         self.channel_list = []
         self.edge_num = [len(topology)]
+        print(f"self_topologies: {self.topologies}")
+        print(f"self.channel_base: {self.channel_base}")
+        print(f"self_edge_num: {self.edge_num}")
+        
         self.pooling_list = []
         self.layers = nn.ModuleList()
         self.args = args
@@ -782,7 +790,9 @@ class LocalEncoder(nn.Module):
     def forward(self, input):
         #bs, n, c = input.shape[0], input.shape[1], input.shape[2]
         output = input.permute(0, 2, 1)#input.reshape(bs, n, -1, 6)
+        # print(f"self.layers: {self.layers}")
         for layer in self.layers:
+            # print(f"layer in motion encoder: {layer}")
             output = layer(output)
         #output = output.view(output.shape[0], -1)
         output = output.permute(0, 2, 1)

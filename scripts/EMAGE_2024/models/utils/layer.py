@@ -147,6 +147,7 @@ class BasicBlock(nn.Module):
                  reduce_first=1, dilation=1, first_dilation=None, act_layer=nn.LeakyReLU,   norm_layer=nn.BatchNorm1d, attn_layer=None, aa_layer=None, drop_block=None, drop_path=None):
         super(BasicBlock, self).__init__()
 
+        # print(f"inplanes, planes, stride, padding, dilation, ker_size: {inplanes}, {planes}, {stride}, {first_dilation}, {dilation}, {ker_size}")
         self.conv1 = nn.Conv1d(
             inplanes, planes, kernel_size=ker_size, stride=stride, padding=first_dilation,
             dilation=dilation, bias=True)
@@ -172,6 +173,7 @@ class BasicBlock(nn.Module):
 
     def forward(self, x):
         shortcut = x
+        # print(f"x in layer.py 175: {x.shape}")
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.act1(x)
@@ -181,6 +183,7 @@ class BasicBlock(nn.Module):
             shortcut = self.downsample(shortcut)
         x += shortcut
         x = self.act2(x)
+        # print(f"x in layer.py return x: {x.shape}")
         return x
 
 def init_weight(m):

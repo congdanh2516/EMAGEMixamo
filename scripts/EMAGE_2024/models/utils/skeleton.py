@@ -9,6 +9,9 @@ import torch.nn.functional as F
 class SkeletonConv(nn.Module):
     def __init__(self, neighbour_list, in_channels, out_channels, kernel_size, joint_num, stride=1, padding=0,
                  bias=True, padding_mode='zeros', add_offset=False, in_offset_channel=0):
+        in_channels = 156 # 225
+        out_channels = 156 # 225
+        joint_num = 52 # 75
         self.in_channels_per_joint = in_channels // joint_num
         self.out_channels_per_joint = out_channels // joint_num
         if in_channels % joint_num != 0 or out_channels % joint_num != 0:
@@ -40,6 +43,8 @@ class SkeletonConv(nn.Module):
                     expanded.append(k * self.in_channels_per_joint + i)
             self.expanded_neighbour_list.append(expanded)
 
+        print(f"neighbour_list: {neighbour_list}, {len(neighbour_list)}")
+
         if self.add_offset:
             self.offset_enc = SkeletonLinear(neighbour_list, in_offset_channel * len(neighbour_list), out_channels)
 
@@ -50,14 +55,21 @@ class SkeletonConv(nn.Module):
                         expanded.append(k * in_offset_channel + i)
                 self.expanded_neighbour_list_offset.append(expanded)
 
-        self.weight = torch.zeros(out_channels, in_channels, kernel_size)
+        # self.weight = torch.zeros(out_channels, in_channels, kernel_size)
+        self.weight = torch.zeros(156, 156, kernel_size) # torch.zeros(225, 225, kernel_size)
+        print(f"self.weight: {self.weight}, {self.weight.shape}")
+        print(f"out_channels, in_channels, kernel_size: {out_channels}, {in_channels}, {kernel_size}")
         if bias:
             self.bias = torch.zeros(out_channels)
         else:
             self.register_parameter('bias', None)
 
         self.mask = torch.zeros_like(self.weight)
+        print(f"self.mask: {self.mask}, {self.mask.shape}")
+        print(f"self.expanded_neighbour_list: {self.expanded_neighbour_list}")
+        
         for i, neighbour in enumerate(self.expanded_neighbour_list):
+            print(f"skeleton.py: {self.out_channels_per_joint}, {self.mask}, {self.mask.shape}, {neighbour}")
             self.mask[self.out_channels_per_joint * i: self.out_channels_per_joint * (i + 1), neighbour, ...] = 1
         self.mask = nn.Parameter(self.mask, requires_grad=False)
 
@@ -97,7 +109,13 @@ class SkeletonConv(nn.Module):
     def forward(self, input):
         # print('SkeletonConv')
         weight_masked = self.weight * self.mask
-        #print(f'input: {input.size()}')
+        # print(f'input: {input.size()}')
+        # print(f"weight_masked: {weight_masked}, {weight_masked.shape}")
+        # print(f"self.bias: {self.bias}, {self.bias.shape}")
+        # print(f"self.stride: {self.stride}, {self.stride.shape}")
+        # print(f"self.dilation: {self.dilation}, {self.dilation.shape}")
+        # print(f"groups: {self.groups}, {self.groups.shape}")
+        # d
         res = F.conv1d(F.pad(input, self._padding_repeated_twice, mode=self.padding_mode),
                        weight_masked, self.bias, self.stride,
                        0, self.dilation, self.groups)
@@ -113,6 +131,9 @@ class SkeletonConv(nn.Module):
 class SkeletonLinear(nn.Module):
     def __init__(self, neighbour_list, in_channels, out_channels, extra_dim1=False):
         super(SkeletonLinear, self).__init__()
+        in_channels = 156 # 225
+        out_channels = 156 # 225
+        joint_num = 52
         self.neighbour_list = neighbour_list
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -219,7 +240,10 @@ class SkeletonPool(nn.Module):
             len(edges), len(self.pooling_list)
         )
 
+        print(f"LINE 238, len(self.pooling_list), channels_per_edge, self.edge_num, channels_per_edge: {len(self.pooling_list)}, {channels_per_edge}, {self.edge_num}, {channels_per_edge}")
+        
         self.weight = torch.zeros(len(self.pooling_list) * channels_per_edge, self.edge_num * channels_per_edge)
+        print(f'self.weight initial: {self.weight.size()}')
 
         for i, pair in enumerate(self.pooling_list):
             for j in pair:
@@ -229,9 +253,10 @@ class SkeletonPool(nn.Module):
         self.weight = nn.Parameter(self.weight, requires_grad=False)
 
     def forward(self, input: torch.Tensor):
-        # print('SkeletonPool')
-        # print(f'input: {input.size()}')
-        # print(f'self.weight: {self.weight.size()}')
+        print('SkeletonPool')
+        print(f'input: {input.size()}')
+        print(f'self.weight: {self.weight.size()}')
+        print(f'self.weight: {self.weight}')
         return torch.matmul(self.weight, input)
 
 
@@ -547,6 +572,9 @@ class ResidualBlockTranspose(nn.Module):
 class SkeletonResidual(nn.Module):
     def __init__(self, topology, neighbour_list, joint_num, in_channels, out_channels, kernel_size, stride, padding, padding_mode, bias, extra_conv, pooling_mode, activation, last_pool):
         super(SkeletonResidual, self).__init__()
+        in_channels = 156 # 225
+        out_channels = 156 # 225
+        joint_num = 52
 
         kernel_even = False if kernel_size % 2 else True
 
@@ -562,18 +590,37 @@ class SkeletonResidual(nn.Module):
         seq.append(SkeletonConv(neighbour_list, in_channels=in_channels, out_channels=out_channels,
                                 joint_num=joint_num, kernel_size=kernel_size, stride=stride,
                                 padding=padding, padding_mode=padding_mode, bias=bias, add_offset=False))
-        seq.append(nn.GroupNorm(10, out_channels))  # FIXME: REMEMBER TO CHANGE BACK !!!
+        seq.append(nn.GroupNorm(15, 156)) # 225  # out_channels  # FIXME: REMEMBER TO CHANGE BACK !!!
+        # print(f"LINE 579 OUT_CHANELS: {out_channels}")
         self.residual = nn.Sequential(*seq)
 
         # (T, J, D) => (T/2, J, 2D)
         self.shortcut = SkeletonConv(neighbour_list, in_channels=in_channels, out_channels=out_channels,
                                      joint_num=joint_num, kernel_size=1, stride=stride, padding=0,
                                      bias=True, add_offset=False)
-
+        print(f"self.shortcut: {self.shortcut}")
+        print(f"in_channels: {in_channels}")
+        print(f"out_channels: {out_channels}")
+        print(f"joint_num: {joint_num}")
+        print(f"kernel_size: {kernel_size}")
+        print(f"stride: {stride}")
+        print(f"padding: {padding}")
+        print(f"bias: {bias}")
+        # checked, it's correct
+        
         seq = []
         # (T/2, J, 2D) => (T/2, J', 2D)
         pool = SkeletonPool(edges=topology, pooling_mode=pooling_mode,
                             channels_per_edge=out_channels // len(neighbour_list), last_pool=last_pool)
+        print(f"pool = SkeletonPool(")
+        print(f"    edges = {topology},")
+        print(f"    pooling_mode = '{pooling_mode}',")
+        print(f"    out_channels =  {out_channels}")
+        print(f"    len(neighbour_list) =  {len(neighbour_list)}")
+        print(f"    channels_per_edge = {out_channels // len(neighbour_list)},")
+        print(f"    last_pool = {last_pool}")
+        print(")")
+        
         if len(pool.pooling_list) != pool.edge_num:
             seq.append(pool)
         seq.append(nn.PReLU() if activation == 'relu' else nn.Tanh())
@@ -588,6 +635,9 @@ class SkeletonResidual(nn.Module):
 class SkeletonResidualTranspose(nn.Module):
     def __init__(self, neighbour_list, joint_num, in_channels, out_channels, kernel_size, padding, padding_mode, bias, extra_conv, pooling_list, upsampling, activation, last_layer):
         super(SkeletonResidualTranspose, self).__init__()
+        in_channels = 156 # 225
+        out_channels = 156 # 225
+        joint_num = 52 # 75
 
         kernel_even = False if kernel_size % 2 else True
 
