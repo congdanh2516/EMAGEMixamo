@@ -24,11 +24,9 @@ from .utils import rotation_conversions as rc
 from .data_tools import joints_list
 from .utils import other_tools
 
-from loguru import logger
 
 class CustomDataset(Dataset):
     def __init__(self, args, loader_type, augmentation=None, kwargs=None, build_cache=True):
-        
         self.loader_type = loader_type
         self.rank = dist.get_rank()
         self.new_cache = args.new_cache
@@ -60,40 +58,44 @@ class CustomDataset(Dataset):
 
 
         self.ori_joint_list = joints_list[args.ori_joints]
-        logger.info(f"ORIGINAL JOINTS: {self.ori_joint_list}")
         self.tar_joint_list = joints_list[args.tar_joints]
-        logger.info(f"TARGET JOINTS: {self.tar_joint_list}")
+        
+        ##----------------Copy from beat_sep_lower.py-----------##
+        # if 'smplx' in self.args.pose_rep:
+        #     self.joint_mask = np.zeros(len(list(self.ori_joint_list.keys()))*3)
+        #     self.joints = len(list(self.tar_joint_list.keys()))  
+        #     for joint_name in self.tar_joint_list:
+        #         self.joint_mask[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
+        # else:
         self.joints = len(list(self.ori_joint_list.keys()))
-        logger.info(f"SELF.JOINTS {self.joints}, {self.ori_joint_list.keys()}")
+        # logger.info(f"SELF JOINT MASK KEY: {self.ori_joint_list.keys()}")
+        # logger.info(f"SELF JOINT: {self.joints}")
         self.joint_mask = np.zeros(self.joints*3)
         for joint_name in self.tar_joint_list:
             if joint_name == "Hips":
                 self.joint_mask[3:6] = 1
             else:
-                # logger.info(f"{joint_name}")
                 self.joint_mask[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
-                # logger.info(f"{self.joint_mask}")
-
-        # logger.info(f"FOR {joint_name}, {self.joint_mask}")
-
-        ## getting data
+    #----------------Copy from beat_sep_lower.py-----------##
+        
         if loader_type == "train":
             self.data_dir = args.root_path + args.train_data_path
             self.multi_length_training = args.multi_length_training
         elif loader_type == "val":
             self.data_dir = args.root_path + args.val_data_path
             self.multi_length_training = args.multi_length_training 
-        else: # test
+        else:
             self.data_dir = args.root_path + args.test_data_path
             self.multi_length_training = [1.0]
       
         self.max_length = int(self.pose_length * self.multi_length_training[-1])
         
         if self.word_rep is not None:
-            with open(f"{args.root_path}{args.train_data_path[:-6]}vocab.pkl", 'rb') as f:
+            with open(f"{args.root_path}{args.train_data_path[:-11]}vocab.pkl", 'rb') as f:
                 self.lang_model = pickle.load(f)
         preloaded_dir = self.data_dir + f"{self.pose_rep}_cache"
-        
+        ##----------------------cả beat_sep_lower.py và beat_sep.py đều không dùng đoạn này-------------##
+        ##beat.py 2022 thì có dùng
         self.mean_pose = np.load(args.root_path+args.mean_pose_path+f"{args.pose_rep}/bvh_mean.npy")
         self.std_pose = np.load(args.root_path+args.mean_pose_path+f"{args.pose_rep}/bvh_std.npy")
         self.audio_norm = args.audio_norm
@@ -105,6 +107,12 @@ class CustomDataset(Dataset):
             self.mean_facial = np.load(args.root_path+args.mean_pose_path+f"{args.facial_rep}/json_mean.npy")
             self.std_facial = np.load(args.root_path+args.mean_pose_path+f"{args.facial_rep}/json_std.npy")
 
+        # if self.args.beat_align:
+        #     if not os.path.exists(args.data_path+f"weights/mean_vel_{args.pose_rep}.npy"):
+        #         self.calculate_mean_velocity(args.data_path+f"weights/mean_vel_{args.pose_rep}.npy")
+        #     self.avg_vel = np.load(args.data_path+f"weights/mean_vel_{args.pose_rep}.npy")
+        ##---------------------------------------------------------------------------------------------------##
+            
         if build_cache and self.rank == 0:
             self.build_cache(preloaded_dir)
         self.lmdb_env = lmdb.open(preloaded_dir, readonly=True, lock=False)
@@ -139,6 +147,7 @@ class CustomDataset(Dataset):
     def __len__(self):
         return self.n_samples
         
+    ##--------This function copy from beat_sep_lower.py-----------##
     def idmapping(self, id):
         # map 1,2,3,4,5, 6,7,9,10,11,  12,13,15,16,17,  18,20,21,22,23,  24,25,27,28,30 to 0-24
         if id == 30: id = 8
@@ -171,23 +180,46 @@ class CustomDataset(Dataset):
             
             id_pose = pose_file.split("/")[-1][:-4] #1_wayne_0_1_1
             logger.info(colored(f"# ---- Building cache for Pose   {id_pose} ---- #", "blue"))
-            
+            print(f"pose_file: {pose_file}")
             with open(pose_file, "r") as pose_data:
+                # print(f"pose_file: {pose_files}")
                 for j, line in enumerate(pose_data.readlines()):
-                    if j < 431: continue     
-                    if j%self.stride != 0:continue
+                    # print(f"j, line: {j}, {line}")
                     data = np.fromstring(line, dtype=float, sep=" ") # 1*27 e.g., 27 rotation 
+                    # logger.info(f"beat_skeleton - cache_generation - data: {data}, {data.shape}")
+                    # print(f"data: {data}")
                     data =  np.array(data)
-                    logger.info("DATA: ", data)
-                    logger.info("JOINT MASK: ", self.joint_mask)
+                    # logger.info(f"DATA: {data} {len(data)}")
+                    # logger.info(f"JOINT MASK: {self.joint_mask} {len(self.joint_mask)}")
                     data = data * self.joint_mask
                     data = data[self.joint_mask.astype(bool)]
                     pose_each_file.append(data)
 
-            pose_each_file = np.array(pose_each_file) 
+            #     print("X1: ", len(pose_each_file_new))
+                
+            # print("joint_mask: ", len(self.joint_mask))
+            # print("joint_mask: ", self.joint_mask)
+
+            # assert 120%self.args.pose_fps == 0, 'pose_fps should be an aliquot part of 120'
+            # stride = int(120/self.args.pose_fps)
+            # with open(pose_file, "r") as pose_data:
+            #     for j, line in enumerate(pose_data.readlines()):
+            #         # if j < 431: continue     
+            #         # if j%stride != 0:continue
+            #         data = np.fromstring(line, dtype=float, sep=" ")
+
+            #         rot_data = rc.euler_angles_to_matrix(torch.from_numpy(np.deg2rad(data)).reshape(-1, self.joints,3), "XYZ")
+            #         rot_data = rc.matrix_to_axis_angle(rot_data).reshape(-1, self.joints*3) 
+            #         rot_data = rot_data.numpy() * self.joint_mask
+            #         rot_data = rot_data[:, self.joint_mask.astype(bool)]
+            #         pose_each_file.append(rot_data)
+
+            pose_each_file = np.array(pose_each_file) # n frames * 27
+            # shape_each_file = np.repeat(np.array(-1).reshape(1, 1), pose_each_file.shape[0], axis=0)
 
             if self.audio_rep is not None:
                 logger.info(f"# ---- Building cache for Audio  {id_pose} and Pose {id_pose} ---- #")
+                print(f"pose_file: {pose_file}")
                 audio_file = pose_file.replace(self.pose_rep, self.audio_rep).replace("bvh", "npy")
                 try:
                     audio_each_file = np.load(audio_file)
@@ -471,12 +503,6 @@ class CustomDataset(Dataset):
             else:
                 tar_pose = torch.from_numpy(tar_pose).reshape((tar_pose.shape[0], -1)).float()
                 in_facial = torch.from_numpy(in_facial).reshape((in_facial.shape[0], -1)).float()
-                # if in_facial.size > 0:
-                # in_facial = torch.from_numpy(in_facial).reshape((in_facial.shape[0], -1)).float()
-                # if in_facial.size == 0:
-                #     in_facial = np.zeros((1, 51))  # Giá trị mặc định, thay đổi nếu cần
-                # in_facial = torch.from_numpy(in_facial).reshape((in_facial.shape[0], -1)).float()
-
             return {"pose":tar_pose, "audio":in_audio, "facial":in_facial, "word":in_word, "id":vid, "emo":emo, "sem":sem}
 
          

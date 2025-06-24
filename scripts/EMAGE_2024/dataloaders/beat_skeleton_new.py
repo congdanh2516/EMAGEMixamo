@@ -97,7 +97,7 @@ class CustomDataset(Dataset):
       
         self.max_length = int(self.pose_length * self.multi_length_training[-1])
         
-        if self.word_rep is not None:
+        if self.word_rep is not None: # word_rep: text
             with open(f"{args.root_path}{args.train_data_path[:-11]}vocab.pkl", 'rb') as f:
                 self.lang_model = pickle.load(f)
         preloaded_dir = self.data_dir + f"{self.pose_rep}_cache"
@@ -272,7 +272,9 @@ class CustomDataset(Dataset):
                     
                     continue
                 audio_each_file, sr = librosa.load(audio_file)
+                print(f"audio_each_file load: {audio_each_file.shape}")
                 audio_each_file = librosa.resample(audio_each_file, orig_sr=sr, target_sr=self.args.audio_sr)
+                print(f"audio_each_file resample: {audio_each_file.shape}")
                 if self.args.audio_rep == "onset+amplitude":
                     from numpy.lib import stride_tricks
                     frame_length = 1024
@@ -294,6 +296,7 @@ class CustomDataset(Dataset):
                     # print(audio_each_file.shape, pose_each_file.shape)
                 if self.args.audio_norm and self.args.audio_rep == "wave16k": 
                     audio_each_file = (audio_each_file - self.mean_audio) / self.std_audio
+                    
                     
              # end - audio_rep --------------------------
                     
@@ -610,6 +613,9 @@ class CustomDataset(Dataset):
                 tar_pose = torch.from_numpy(tar_pose).reshape((tar_pose.shape[0], -1)).float()
                 in_facial = torch.from_numpy(in_facial).reshape((in_facial.shape[0], -1)).float()
                 vid = torch.from_numpy(vid).reshape((vid.shape[0], -1)).float()
+
+            print(f"in_audio in beat_skeleton_new: {in_audio.shape}")
+            # d
             return {"pose":tar_pose, "audio":in_audio, "facial":in_facial, "word":in_word, "id":vid, "emo":emo, "sem":sem}
 
          

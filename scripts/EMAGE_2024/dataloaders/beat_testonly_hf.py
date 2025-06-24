@@ -74,7 +74,7 @@ class CustomDataset(Dataset):
         if self.max_audio_pre_len > self.args.test_length*self.args.audio_sr: 
             self.max_audio_pre_len = self.args.test_length*self.args.audio_sr
         
-        if args.word_rep is not None:
+        if args.word_rep is not None: # None 
             with open(f"{args.data_path}weights/vocab.pkl", 'rb') as f:
                 self.lang_model = pickle.load(f)
                 

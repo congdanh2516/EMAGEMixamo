@@ -100,7 +100,7 @@ beat_joints = {
 
 beat_full = {
     'upper': {
-        'Hips':         6,
+        'Hips':         3,
         'Spine':        3,
         'Spine1':       3,
         'Spine2':       3,
@@ -365,7 +365,7 @@ joints_list = {
     },
 
     'skeleton_upper': {
-        'Hips':         6,
+        'Hips':         3,
         'Spine':        3,
         'Spine1':       3,
         'Spine2':       3,
@@ -1219,7 +1219,7 @@ joints_list = {
     },
     
     "beat_full":{
-        'Hips': 6,
+        'Hips': 3,
         'Spine':       3 ,
         'Spine1':       3 ,
         'Spine2':       3 ,
@@ -1839,66 +1839,66 @@ joints_list = {
         'Spine': [3, 9],
         'Spine1': [3, 12],
         'Spine2': [3, 15],
-        'LShoulder': [3, 18],
-        'LArm': [3, 21],
-        'LArm1': [3, 24],
-        'LHand': [3, 27],
-        'LHandI1': [3, 30],
-        'LHandI2': [3, 33],
-        'LHandI3': [3, 36],
+        'LeftShoulder': [3, 18],
+        'LeftArm': [3, 21],
+        'LeftForeArm': [3, 24],
+        'LeftHand': [3, 27],
+        'LeftHandIndex1': [3, 30],
+        'LeftHandIndex2': [3, 33],
+        'LeftHandIndex3': [3, 36],
 
-        'LHandM1': [3, 39],
-        'LHandM2': [3, 42],
-        'LHandM3': [3, 45],
+        'LeftHandMiddle1': [3, 39],
+        'LeftHandMiddle2': [3, 42],
+        'LeftHandMiddle3': [3, 45],
 
-        'LHandP1': [3, 48],
-        'LHandP2': [3, 51],
-        'LHandP3': [3, 54],
+        'LeftHandPinky1': [3, 48],
+        'LeftHandPinky2': [3, 51],
+        'LeftHandPinky3': [3, 54],
 
-        'LHandR1': [3, 57],
-        'LHandR2': [3, 60],
-        'LHandR3': [3, 63],
+        'LeftHandRing1': [3, 57],
+        'LeftHandRing2': [3, 60],
+        'LeftHandRing3': [3, 63],
 
-        'LHandT1': [3, 66],
-        'LHandT2': [3, 69],
-        'LHandT3': [3, 72],
+        'LeftHandThumb1': [3, 66],
+        'LeftHandThumb2': [3, 69],
+        'LeftHandThumb3': [3, 72],
 
         'Neck': [3, 75],
         'Head': [3, 78],
 
-        'RShoulder': [3, 81],
-        'RArm': [3, 84],
-        'RArm1': [3, 87],
-        'RHand': [3, 90],
-        'RHandI1': [3, 93],
-        'RHandI2': [3, 96],
-        'RHandI3': [3, 99],
+        'RightShoulder': [3, 81],
+        'RightArm': [3, 84],
+        'RightForeArm': [3, 87],
+        'RightHand': [3, 90],
+        'RightHandIndex1': [3, 93],
+        'RightHandIndex2': [3, 96],
+        'RightHandIndex3': [3, 99],
 
-        'RHandM1': [3, 102],
-        'RHandM2': [3, 105],
-        'RHandM3': [3, 108],
+        'RightHandMiddle1': [3, 102],
+        'RightHandMiddle2': [3, 105],
+        'RightHandMiddle3': [3, 108],
 
-        'RHandP1': [3, 111],
-        'RHandP2': [3, 114],
-        'RHandP3': [3, 117],
+        'RightHandPinky1': [3, 111],
+        'RightHandPinky2': [3, 114],
+        'RightHandPinky3': [3, 117],
 
-        'RHandR1': [3, 120],
-        'RHandR2': [3, 123],
-        'RHandR3': [3, 126],
+        'RightHandRing1': [3, 120],
+        'RightHandRing2': [3, 123],
+        'RightHandRing3': [3, 126],
 
-        'RHandT1': [3, 129],
-        'RHandT2': [3, 132],
-        'RHandT3': [3, 135],
+        'RightHandThumb1': [3, 129],
+        'RightHandThumb2': [3, 132],
+        'RightHandThumb3': [3, 135],
 
-        'LUpLeg': [3, 138],
-        'LLeg': [3, 141],
-        'LFoot': [3, 144],
-        'LToeBase': [3, 147],
+        'LeftUpLeg': [3, 138],
+        'LeftLeg': [3, 141],
+        'LeftFoot': [3, 144],
+        'LeftToeBase': [3, 147],
 
-        'RUpLeg': [3, 150],
-        'RLeg': [3, 153],
-        'RFoot': [3, 156],
-        'RToeBase': [3, 159]
+        'RightUpLeg': [3, 150],
+        'RightLeg': [3, 153],
+        'RightFoot': [3, 156],
+        'RightToeBase': [3, 159]
     },
 
     "mixamo_full" : {
@@ -1906,66 +1906,57 @@ joints_list = {
         'Spine': 3,
         'Spine1': 3,
         'Spine2': 3,
-        'LShoulder': 3,
-        'LArm': 3,
-        'LArm1': 3,
-        'LHand': 3,
-        'LHandI1': 3,
-        'LHandI2': 3,
-        'LHandI3': 3,
-    
-        'LHandM1': 3,
-        'LHandM2': 3,
-        'LHandM3': 3,
-    
-        'LHandP1': 3,
-        'LHandP2': 3,
-        'LHandP3': 3,
-    
-        'LHandR1': 3,
-        'LHandR2': 3,
-        'LHandR3': 3,
-    
-        'LHandT1': 3,
-        'LHandT2': 3,
-        'LHandT3': 3,
-    
+        'LeftShoulder': 3,
+        'LeftArm': 3,
+        'LeftForeArm': 3,
         'Neck': 3,
+        'RightShoulder': 3,
+        'RightArm': 3,
+        'RightForeArm': 3,
+
+        'LeftHand': 3,
+        'LeftHandIndex1': 3,
+        'LeftHandIndex2': 3,
+        'LeftHandIndex3': 3,
+        'LeftHandMiddle1': 3,
+        'LeftHandMiddle2': 3,
+        'LeftHandMiddle3': 3,
+        'LeftHandPinky1': 3,
+        'LeftHandPinky2': 3,
+        'LeftHandPinky3': 3,
+        'LeftHandRing1': 3,
+        'LeftHandRing2': 3,
+        'LeftHandRing3': 3,
+        'LeftHandThumb1': 3,
+        'LeftHandThumb2': 3,
+        'LeftHandThumb3': 3,
+        'RightHand': 3,
+        'RightHandIndex1': 3,
+        'RightHandIndex2': 3,
+        'RightHandIndex3': 3,
+        'RightHandMiddle1': 3,
+        'RightHandMiddle2': 3,
+        'RightHandMiddle3': 3,
+        'RightHandPinky1': 3,
+        'RightHandPinky2': 3,
+        'RightHandPinky3': 3,
+        'RightHandRing1': 3,
+        'RightHandRing2': 3,
+        'RightHandRing3': 3,
+        'RightHandThumb1': 3,
+        'RightHandThumb2': 3,
+        'RightHandThumb3': 3,
+
         'Head': 3,
-    
-        'RShoulder': 3,
-        'RArm': 3,
-        'RArm1': 3,
-        'RHand': 3,
-        'RHandI1': 3,
-        'RHandI2': 3,
-        'RHandI3': 3,
-    
-        'RHandM1': 3,
-        'RHandM2': 3,
-        'RHandM3': 3,
-    
-        'RHandP1': 3,
-        'RHandP2': 3,
-        'RHandP3': 3,
-    
-        'RHandR1': 3,
-        'RHandR2': 3,
-        'RHandR3': 3,
-    
-        'RHandT1': 3,
-        'RHandT2': 3,
-        'RHandT3': 3,
-    
-        'LUpLeg': 3,
-        'LLeg': 3,
-        'LFoot': 3,
-        'LToeBase': 3,
-    
-        'RUpLeg': 3,
-        'RLeg': 3,
-        'RFoot': 3,
-        'RToeBase': 3
+
+        'LeftUpLeg': 3,
+        'LeftLeg': 3,
+        'LeftFoot': 3,
+        'LeftToeBase': 3,
+        'RightUpLeg': 3,
+        'RightLeg': 3,
+        'RightFoot': 3,
+        'RightToeBase': 3
     },
 
     'mixamo_joint_upper': {
@@ -1973,69 +1964,59 @@ joints_list = {
         'Spine': [3, 9],
         'Spine1': [3, 12],
         'Spine2': [3, 15],
-        'LShoulder': [3, 18],
-        'LArm': [3, 21],
-        'LArm1': [3, 24],
+        'LeftShoulder': [3, 18],
+        'LeftArm': [3, 21],
+        'LeftForeArm': [3, 24],
         'Neck': [3, 75],
-        'RShoulder': [3, 81],
-        'RArm': [3, 84],
-        'RArm1': [3, 87],
+        'RightShoulder': [3, 81],
+        'RightArm': [3, 84],
+        'RightForeArm': [3, 87],
     },
 
     'mixamo_joint_hand': {
-        'LHand': [3, 27],
-        'LHandI1': [3, 30],
-        'LHandI2': [3, 33],
-        'LHandI3': [3, 36],
-
-        'LHandM1': [3, 39],
-        'LHandM2': [3, 42],
-        'LHandM3': [3, 45],
-
-        'LHandP1': [3, 48],
-        'LHandP2': [3, 51],
-        'LHandP3': [3, 54],
-
-        'LHandR1': [3, 57],
-        'LHandR2': [3, 60],
-        'LHandR3': [3, 63],
-
-        'LHandT1': [3, 66],
-        'LHandT2': [3, 69],
-        'LHandT3': [3, 72],
-        
-        'RHand': [3, 90],
-        'RHandI1': [3, 93],
-        'RHandI2': [3, 96],
-        'RHandI3': [3, 99],
-
-        'RHandM1': [3, 102],
-        'RHandM2': [3, 105],
-        'RHandM3': [3, 108],
-
-        'RHandP1': [3, 111],
-        'RHandP2': [3, 114],
-        'RHandP3': [3, 117],
-
-        'RHandR1': [3, 120],
-        'RHandR2': [3, 123],
-        'RHandR3': [3, 126],
-
-        'RHandT1': [3, 129],
-        'RHandT2': [3, 132],
-        'RHandT3': [3, 135],
+        'LeftHand': [3, 27],
+        'LeftHandIndex1': [3, 30],
+        'LeftHandIndex2': [3, 33],
+        'LeftHandIndex3': [3, 36],
+        'LeftHandMiddle1': [3, 39],
+        'LeftHandMiddle2': [3, 42],
+        'LeftHandMiddle3': [3, 45],
+        'LeftHandPinky1': [3, 48],
+        'LeftHandPinky2': [3, 51],
+        'LeftHandPinky3': [3, 54],
+        'LeftHandRing1': [3, 57],
+        'LeftHandRing2': [3, 60],
+        'LeftHandRing3': [3, 63],
+        'LeftHandThumb1': [3, 66],
+        'LeftHandThumb2': [3, 69],
+        'LeftHandThumb3': [3, 72],
+        'RightHand': [3, 90],
+        'RightHandIndex1': [3, 93],
+        'RightHandIndex2': [3, 96],
+        'RightHandIndex3': [3, 99],
+        'RightHandMiddle1': [3, 102],
+        'RightHandMiddle2': [3, 105],
+        'RightHandMiddle3': [3, 108],
+        'RightHandPinky1': [3, 111],
+        'RightHandPinky2': [3, 114],
+        'RightHandPinky3': [3, 117],
+        'RightHandRing1': [3, 120],
+        'RightHandRing2': [3, 123],
+        'RightHandRing3': [3, 126],
+        'RightHandThumb1': [3, 129],
+        'RightHandThumb2': [3, 132],
+        'RightHandThumb3': [3, 135],
     },
 
     'mixamo_joint_lower': {
-        'LUpLeg': [3, 138],
-        'LLeg': [3, 141],
-        'LFoot': [3, 144],
-        'LToeBase': [3, 147],
-
-        'RUpLeg': [3, 150],
-        'RLeg': [3, 153],
-        'RFoot': [3, 156],
-        'RToeBase': [3, 159]
+        'LeftUpLeg': [3, 138],
+        'LeftLeg': [3, 141],
+        'LeftFoot': [3, 144],
+        'LeftToeBase': [3, 147],
+        'RightUpLeg': [3, 150],
+        'RightLeg': [3, 153],
+        'RightFoot': [3, 156],
+        'RightToeBase': [3, 159]
     },
 
     'mixamo_joint_face': {
@@ -2047,69 +2028,59 @@ joints_list = {
         'Spine': 3,
         'Spine1': 3,
         'Spine2': 3,
-        'LShoulder': 3,
-        'LArm': 3,
-        'LArm1': 3,
+        'LeftShoulder': 3,
+        'LeftArm': 3,
+        'LeftForeArm': 3,
         'Neck': 3,
-        'RShoulder': 3,
-        'RArm': 3,
-        'RArm1': 3,
+        'RightShoulder': 3,
+        'RightArm': 3,
+        'RightForeArm': 3,
     }, 
 
     'mixamo_hand': {
-        'LHand': 3,
-        'LHandI1': 3,
-        'LHandI2': 3,
-        'LHandI3': 3,
-    
-        'LHandM1': 3,
-        'LHandM2': 3,
-        'LHandM3': 3,
-    
-        'LHandP1': 3,
-        'LHandP2': 3,
-        'LHandP3': 3,
-    
-        'LHandR1': 3,
-        'LHandR2': 3,
-        'LHandR3': 3,
-    
-        'LHandT1': 3,
-        'LHandT2': 3,
-        'LHandT3': 3,
-        
-        'RHand': 3,
-        'RHandI1': 3,
-        'RHandI2': 3,
-        'RHandI3': 3,
-    
-        'RHandM1': 3,
-        'RHandM2': 3,
-        'RHandM3': 3,
-    
-        'RHandP1': 3,
-        'RHandP2': 3,
-        'RHandP3': 3,
-    
-        'RHandR1': 3,
-        'RHandR2': 3,
-        'RHandR3': 3,
-    
-        'RHandT1': 3,
-        'RHandT2': 3,
-        'RHandT3': 3,
+        'LeftHand': 3,
+        'LeftHandIndex1': 3,
+        'LeftHandIndex2': 3,
+        'LeftHandIndex3': 3,
+        'LeftHandMiddle1': 3,
+        'LeftHandMiddle2': 3,
+        'LeftHandMiddle3': 3,
+        'LeftHandPinky1': 3,
+        'LeftHandPinky2': 3,
+        'LeftHandPinky3': 3,
+        'LeftHandRing1': 3,
+        'LeftHandRing2': 3,
+        'LeftHandRing3': 3,
+        'LeftHandThumb1': 3,
+        'LeftHandThumb2': 3,
+        'LeftHandThumb3': 3,
+        'RightHand': 3,
+        'RightHandIndex1': 3,
+        'RightHandIndex2': 3,
+        'RightHandIndex3': 3,
+        'RightHandMiddle1': 3,
+        'RightHandMiddle2': 3,
+        'RightHandMiddle3': 3,
+        'RightHandPinky1': 3,
+        'RightHandPinky2': 3,
+        'RightHandPinky3': 3,
+        'RightHandRing1': 3,
+        'RightHandRing2': 3,
+        'RightHandRing3': 3,
+        'RightHandThumb1': 3,
+        'RightHandThumb2': 3,
+        'RightHandThumb3': 3,
     },
 
     'mixamo_lower': {
-        'LUpLeg': 3,
-        'LLeg': 3,
-        'LFoot': 3,
-        'LToeBase': 3,
-    
-        'RUpLeg': 3,
-        'RLeg': 3,
-        'RFoot': 3,
-        'RToeBase': 3
+        'LeftUpLeg': 3,
+        'LeftLeg': 3,
+        'LeftFoot': 3,
+        'LeftToeBase': 3,
+        'RightUpLeg': 3,
+        'RightLeg': 3,
+        'RightFoot': 3,
+        'RightToeBase': 3
     },
 
     'mixamo_face': {
@@ -2402,9 +2373,7 @@ def result2target_vis(pose_version, res_bvhlist, save_path, demo_name, verbose=T
                 wirte_file.write(line)
                 
             offset_data = pose_data_pre_file[file_content_length]
-            print(f"1_offset_data: {offset_data}, len: {len(offset_data)}")
             offset_data = np.fromstring(offset_data, dtype=float, sep=' ')
-            print(f"2_offset_data: {offset_data}, {len(offset_data)}")
         wirte_file.close()
 
         wirte_file = open(os.path.join(save_path, f'res_{short_name}'),'r')
@@ -2418,8 +2387,6 @@ def result2target_vis(pose_version, res_bvhlist, save_path, demo_name, verbose=T
         wirte_file.writelines(i for i in ori_lines[:file_content_length])    
         wirte_file.close() 
 
-        # print(f"bvh_file_dir: {bvh_file_dir,}") # ket qua du doan cua mo hinh
-        
         with open(os.path.join(save_path, f'res_{short_name}'),'a+') as wirte_file: 
             with open(bvh_file_dir, 'r') as pose_data:
                 data_each_file = []
@@ -2428,23 +2395,16 @@ def result2target_vis(pose_version, res_bvhlist, save_path, demo_name, verbose=T
                     if not j:
                         pass
                     else:          
-                        data = np.fromstring(line, dtype=float, sep=' ') # ket qua du doan cua mo hinh, mang = num_joint * 3
-                        print(f"data: {data}, len: {len(data)}")
+                        data = np.fromstring(line, dtype=float, sep=' ')
                         data_rotation = offset_data.copy() 
-                        print(f"data_rotation: {data_rotation}, {len(data_rotation)}")
-                        d
                         # print(f"target_list.items(): {target_list.items()}")
                         # print(f"len(data): {len(data)}")
                         
-                        for iii, (k, v) in enumerate(target_list.items()): # here is 147 rotations by 3 # target_list la cac joint cua (sub-)module, chi chua ten joint va so luong join
-                            print(f"iii, k, v: {iii}, {k}, {v}") # no, name, num_joint (trong mang 1 phan tu)
-                            if iii*3+3 < len(data): # len(data) la so luong gia tri = num_joint * 3, data là output cua mo hinh train, trong file ket qua xuat ra á
+                        for iii, (k, v) in enumerate(target_list.items()): # here is 147 rotations by 3
+                            if iii*3+3 < len(data):
                                 # print(f"{ori_list[k][1]}, {v}, {v[0]}")
                                 # print(f"data_rotation[{ori_list[k][1]} - {v[0]} : {ori_list[k][1]}]")
                                 data_rotation[ori_list[k][1] - v : ori_list[k][1]] = data[iii*3:iii*3+3]
-                                
-                                # example: k=Hips, 1 là phần tử thứ 2 trong mảng [6, 6], v la gia tri duy nhat trong target_list, chỉ chi joint_name va so joint của joint do, data_rotation[6-3 : 6] = data[0 : 3]
-                                
                                 # y_rot = data[iii*3]      # Lấy Y (ban đầu là thứ tự đầu tiên)
                                 # x_rot = data[iii*3+1]    # Lấy X (ban đầu là thứ tự thứ hai)
                                 # z_rot = data[iii*3+2]    # Lấy Z (ban đầu là thứ tự thứ ba)

@@ -202,6 +202,7 @@ class MAGE_Transformer(nn.Module):
         # print(f"IN_MOTION IN FORWARD after: {in_motion.shape}") 
         # print(f"self.mask_embeddings.shape, in_motion.shape: {self.mask_embeddings.shape}, {in_motion.shape}")
 
+
         masked_embeddings = self.mask_embeddings.expand_as(in_motion)
         # print(f"masked_embeddings: {masked_embeddings}")
         # masked_embeddings = self.mask_embeddings[:, :, :223]

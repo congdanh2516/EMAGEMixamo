@@ -27,7 +27,7 @@ std_pose_path: /beat_4english_30_full8/train_copy/
 
 stat: wandb
 dataset: beat_skeleton
-new_cache: False 
+new_cache: True
 
 # ori_joints: beat_smplx_joints
 # tar_joints: beat_smplx_upper
@@ -70,7 +70,7 @@ facial_dims: 51 # change to work with ARKit(52-tongue=51)
 ##-----Keep unchanged-------##
 word_index_num: 11195
 word_dims: 300
-batch_size: 1
+batch_size: 128
 lr_base: 3e-4
 decay_epochs: 780
 model: motion_representation

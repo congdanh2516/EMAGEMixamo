@@ -7,11 +7,35 @@ out_path: ./outputs/audio2pose/
 # mean_pose_path: /beat_4english_30_full/train_copy/
 # std_pose_path: /beat_4english_30_full/train_copy/
 
-train_data_path: /beat_4english_30_mixamo/train_copy/ 
-val_data_path: /beat_4english_30_mixamo/val_copy/ 
-test_data_path: /beat_4english_30_mixamo/test_copy/ 
-mean_pose_path: /beat_4english_30_mixamo/train_copy/
-std_pose_path: /beat_4english_30_mixamo/train_copy/
+# train_data_path: /beat_4english_30_mixamo2/train_copy/ 
+# val_data_path: /beat_4english_30_mixamo2/val_copy/ 
+# test_data_path: /beat_4english_30_mixamo2/test_copy/ 
+# mean_pose_path: /beat_4english_30_mixamo2/train_copy/
+# std_pose_path: /beat_4english_30_mixamo2/train_copy/
+
+# train_data_path: /beat_4english_30_mixamo3/train_copy/ 
+# val_data_path: /beat_4english_30_mixamo3/val_copy/ 
+# test_data_path: /beat_4english_30_mixamo3/test_copy/ 
+# mean_pose_path: /beat_4english_30_mixamo3/train_copy/
+# std_pose_path: /beat_4english_30_mixamo3/train_copy/
+
+# train_data_path: /beat_4english_30_mixamo4/train_copy/ 
+# val_data_path: /beat_4english_30_mixamo4/val_copy/ 
+# test_data_path: /beat_4english_30_mixamo4/test_copy/ 
+# mean_pose_path: /beat_4english_30_mixamo4/train_copy/
+# std_pose_path: /beat_4english_30_mixamo4/train_copy/
+
+# train_data_path: /beat_4english_30_mixamo5/train_copy/ 
+# val_data_path: /beat_4english_30_mixamo5/val_copy/ 
+# test_data_path: /beat_4english_30_mixamo5/test_copy/ 
+# mean_pose_path: /beat_4english_30_mixamo5/train_copy/
+# std_pose_path: /beat_4english_30_mixamo5/train_copy/
+
+train_data_path: /beat_4english_30_mixamo6/train_copy/ 
+val_data_path: /beat_4english_30_mixamo6/val_copy/ 
+test_data_path: /beat_4english_30_mixamo6/test_copy/ 
+mean_pose_path: /beat_4english_30_mixamo6/train_copy/
+std_pose_path: /beat_4english_30_mixamo6/train_copy/
 
 # train_data_path: /beat_4english_30_141/train/ 
 # val_data_path: /beat_4english_30_141/val/ 
@@ -64,7 +88,7 @@ facial_dims: 51 # change to work with ARKit(52-tongue=51)
 ##-----Keep unchanged-------##
 word_index_num: 11195
 word_dims: 300
-batch_size: 1
+batch_size: 4
 lr_base: 3e-4
 decay_epochs: 99
 model: motion_representation
@@ -106,8 +130,8 @@ rec_ver_weight: 1
 #iwa_weight: 0
 #fusion_mode: sum
 # grad_norm: 1
-epochs: 10
-test_period: 2
+epochs: 800
+test_period: 40
 
 ## Thêm vào
 multi_length_training: [1] #Vì trong data loader cần biến này#

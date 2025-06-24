@@ -20,11 +20,17 @@ out_path: ./outputs/audio2pose/
 # mean_pose_path: /beat_4english_30_full7/train_copy/
 # std_pose_path: /beat_4english_30_full7/train_copy/
 
-train_data_path: /beat_4english_30_mixamo/train_copy/ 
-val_data_path: /beat_4english_30_mixamo/val_copy/ 
-test_data_path: /beat_4english_30_mixamo/test_copy/ 
-mean_pose_path: /beat_4english_30_mixamo/train_copy/
-std_pose_path: /beat_4english_30_mixamo/train_copy/
+# train_data_path: /beat_4english_30_mixamo/train_copy/ 
+# val_data_path: /beat_4english_30_mixamo/val_copy/ 
+# test_data_path: /beat_4english_30_mixamo/test_copy/ 
+# mean_pose_path: /beat_4english_30_mixamo/train_copy/
+# std_pose_path: /beat_4english_30_mixamo/train_copy/
+
+train_data_path: /beat_4english_30_mixamo3/train_copy/ 
+val_data_path: /beat_4english_30_mixamo3/val_copy/ 
+test_data_path: /beat_4english_30_mixamo3/test_copy/ 
+mean_pose_path: /beat_4english_30_mixamo3/train_copy/
+std_pose_path: /beat_4english_30_mixamo3/train_copy/
 
 stat: wandb
 dataset: beat_skeleton

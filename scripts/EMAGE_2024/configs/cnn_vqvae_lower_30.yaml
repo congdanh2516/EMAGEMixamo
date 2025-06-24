@@ -7,11 +7,23 @@ out_path: ./outputs/audio2pose/
 # mean_pose_path: /beat_4english_30_full/train_copy/
 # std_pose_path: /beat_4english_30_full/train_copy/
 
-train_data_path: /beat_4english_30_full8/train_copy/ 
-val_data_path: /beat_4english_30_full8/val_copy/ 
-test_data_path: /beat_4english_30_full8/test_copy/ 
-mean_pose_path: /beat_4english_30_full8/train_copy/
-std_pose_path: /beat_4english_30_full8/train_copy/
+# train_data_path: /beat_4english_30_full/train_clon/ 
+# val_data_path: /beat_4english_30_full/val_clon/ 
+# test_data_path: /beat_4english_30_full/test_clon/ 
+# mean_pose_path: /beat_4english_30_full/train_clon/
+# std_pose_path: /beat_4english_30_full/train_clon/
+
+# train_data_path: /beat_4english_30_full8/train_copy/ 
+# val_data_path: /beat_4english_30_full8/val_copy/ 
+# test_data_path: /beat_4english_30_full8/test_copy/ 
+# mean_pose_path: /beat_4english_30_full8/train_copy/
+# std_pose_path: /beat_4english_30_full8/train_copy/
+
+train_data_path: /beat_4english_30_full9/train_copy/ 
+val_data_path: /beat_4english_30_full9/val_copy/ 
+test_data_path: /beat_4english_30_full9/test_copy/ 
+mean_pose_path: /beat_4english_30_full9/train_copy/
+std_pose_path: /beat_4english_30_full9/train_copy/
 
 # train_data_path: /beat_4english_30_141/train/ 
 # val_data_path: /beat_4english_30_141/val/ 
@@ -21,7 +33,7 @@ std_pose_path: /beat_4english_30_full8/train_copy/
 
 stat: wandb
 dataset: beat_skeleton
-new_cache: False
+new_cache: True
 
 # ori_joints: beat_smplx_joints
 # tar_joints: beat_smplx_upper
@@ -64,7 +76,7 @@ facial_dims: 51 # change to work with ARKit(52-tongue=51)
 ##-----Keep unchanged-------##
 word_index_num: 11195
 word_dims: 300
-batch_size: 1
+batch_size: 32
 lr_base: 3e-4
 decay_epochs: 99
 model: motion_representation
@@ -107,7 +119,7 @@ rec_ver_weight: 1
 #fusion_mode: sum
 # grad_norm: 1
 epochs: 4
-test_period: 2
+test_period: 1
 
 ## Thêm vào
 multi_length_training: [1] #Vì trong data loader cần biến này#

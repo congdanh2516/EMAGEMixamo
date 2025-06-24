@@ -48,7 +48,7 @@ class CustomTrainer(train.BaseTrainer):
         self.joints = self.train_data.joints
         self.ori_joint_list = joints_list[self.args.ori_joints]
 
-        # print(f"self.ori_joint_list: {self.ori_joint_list}")
+        print(f"self.ori_joint_list: {self.ori_joint_list}")
         
         
         self.tar_joint_list_face = joints_list["mixamo_face"]
@@ -126,12 +126,12 @@ class CustomTrainer(train.BaseTrainer):
         # print(f"JOINT_MASK_HAND: {self.joint_mask_hands}, {len(self.joint_mask_hands)}")
         
         self.joint_mask_lower = np.zeros(len(list(self.ori_joint_list.keys()))*3)
-        # print(f"self.joint_mask_lower: {self.joint_mask_lower}")
-        # print(f"self.tar_joint_list_lower: {self.tar_joint_list_lower}")
+        print(f"self.joint_mask_lower: {self.joint_mask_lower}")
+        print(f"self.tar_joint_list_lower: {self.tar_joint_list_lower}")
         for joint_name in self.tar_joint_list_lower:
             self.joint_mask_lower[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
 
-        # print(f"self.joint_mask_lower: {self.joint_mask_lower}")
+        print(f"self.joint_mask_lower: {self.joint_mask_lower}")
 
         self.tracker = other_tools.EpochTracker(["fid", "l1div", "bc", "rec", "trans", "vel", "transv", 'dis', 'gen', 'acc', 'transa', 'exp', 'lvd', 'mse', "cls", "rec_face", "latent", "cls_full", "cls_self", "cls_word", "latent_word","latent_self"], [False,True,True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,False,False,False])
         
@@ -524,7 +524,7 @@ class CustomTrainer(train.BaseTrainer):
         # print(f"emage_trainer-_load_data-tar_exps: {tar_exps.shape}")
         in_audio = dict_data["audio"].to(self.rank)
         # print(f"in_audio: {in_audio}")
-        in_word = dict_data["word"].to(self.rank)
+        in_word = None # dict_data["word"].to(self.rank)
         # print(f"in_word: {in_word}") 
         # tar_beta = dict_data["beta"].to(self.rank)
         tar_id = dict_data["id"].to(self.rank).long()
@@ -711,9 +711,12 @@ class CustomTrainer(train.BaseTrainer):
         # print(f"mask: {mask_val.shape}")
 
         # print(f"_g_training-loaded_data: {loaded_data}")
+
+        print(f"loaded_data['in_audio']: ", loaded_data['in_audio'].shape)
+        # d
         
         net_out_val  = self.model(
-            loaded_data['in_audio'], loaded_data['in_word'], mask=mask_val,
+            loaded_data['in_audio'], in_word=None, mask=mask_val,
             in_id = loaded_data['tar_id'], in_motion = loaded_data['latent_all'],
             use_attentions = True)
         # print(f"MAGE_Transformer return:\n{net_out_val}")
@@ -752,7 +755,7 @@ class CustomTrainer(train.BaseTrainer):
             mask = mask.float().cuda()
             # print(f"loaded_data['latent_all'].shape: {loaded_data['latent_all'].shape}") # [8, 64, 225]
             net_out_self  = self.model(
-                loaded_data['in_audio'], loaded_data['in_word'], mask=mask,
+                loaded_data['in_audio'], in_word=None, mask=mask,
                 in_id = loaded_data['tar_id'], in_motion = loaded_data['latent_all'],
                 use_attentions = True, use_word=False)
             
@@ -773,7 +776,7 @@ class CustomTrainer(train.BaseTrainer):
             
             # ------ masked audio gesture moderling ------ #
             net_out_word  = self.model(
-                loaded_data['in_audio'], loaded_data['in_word'], mask=mask,
+                loaded_data['in_audio'], in_word=None, mask=mask,
                 in_id = loaded_data['tar_id'], in_motion = loaded_data['latent_all'],
                 use_attentions = True, use_word=True)
 
@@ -926,7 +929,7 @@ class CustomTrainer(train.BaseTrainer):
         tar_pose = loaded_data["tar_pose"]
         # print(f"tar_poseee: {tar_pose.shape}") # [1, 2070, 225]
         # tar_beta = loaded_data["tar_beta"]
-        in_word = loaded_data["in_word"]
+        in_word = None # loaded_data["in_word"]
         tar_exps = loaded_data["tar_exps"]
         # tar_contact = loaded_data["tar_contact"]
         in_audio = loaded_data["in_audio"]
@@ -942,7 +945,7 @@ class CustomTrainer(train.BaseTrainer):
             tar_pose = tar_pose[:, :-remain, :]
             # tar_beta = tar_beta[:, :-remain, :]
             # tar_trans = tar_trans[:, :-remain, :]
-            in_word = in_word[:, :-remain]
+            # in_word = in_word[:, :-remain]
             tar_exps = tar_exps[:, :-remain, :]
             # tar_contact = tar_contact[:, :-remain, :]
             n = n - remain
@@ -998,7 +1001,7 @@ class CustomTrainer(train.BaseTrainer):
         #     latent_all = latent_all_9[:, :n, :]
 
         for i in range(0, roundt):
-            in_word_tmp = in_word[:, i*(round_l):(i+1)*(round_l)+self.args.pre_frames]
+            # in_word_tmp = in_word[:, i*(round_l):(i+1)*(round_l)+self.args.pre_frames]
             # audio fps is 16000 and pose fps is 30
             in_audio_tmp = in_audio[:, i*(16000//30*round_l):(i+1)*(16000//30*round_l)+16000//30*self.args.pre_frames]
             in_id_tmp = loaded_data['tar_id'][:, i*(round_l):(i+1)*(round_l)+self.args.pre_frames]
@@ -1019,7 +1022,7 @@ class CustomTrainer(train.BaseTrainer):
             
             net_out_val = self.model(
                 in_audio = in_audio_tmp,
-                in_word=in_word_tmp,
+                in_word=None,
                 mask=mask_val,
                 in_id = in_id_tmp,
                 in_motion = latent_all_tmp,
@@ -1551,7 +1554,7 @@ class CustomTrainer(train.BaseTrainer):
                 # MAGE_Transformer, return rec_face, upper, lower, hands, cls_face, upper, lower, hands
                 net_out = self._g_test(loaded_data) # theo _g_test, return rec_pose, tar_pose, rec_exps, tar_pose # đây là model đã train, prediction
                 # print(f"net_out: {net_out}") # check
-                # print(f"net_out keys: {net_out.keys()}") # check
+                print(f"net_out keys: {net_out.keys()}") # check
                 tar_pose = net_out['tar_pose']
                 rec_pose = net_out['rec_pose']
                 tar_exps = net_out['tar_exps']
@@ -1562,14 +1565,14 @@ class CustomTrainer(train.BaseTrainer):
                 # print(f"rec_exps: {rec_exps.shape}")
                 # print(rec_pose.shape, tar_pose.shape)
                 bs, n, j = tar_pose.shape[0], tar_pose.shape[1], self.joints
-                # print(f"before rec_pose, tar_pose: {rec_pose.shape}, {tar_pose.shape}")
+                print(f"before rec_pose, tar_pose: {rec_pose.shape}, {tar_pose.shape}")
                 std_pose = self.test_data.std_pose[self.test_data.joint_mask.astype(bool)]
                 mean_pose = self.test_data.mean_pose[self.test_data.joint_mask.astype(bool)]
 
                 out_sub = (rec_pose.cpu().numpy().reshape(-1, self.args.pose_dims) * std_pose) + mean_pose
                 out_final = out_sub
 
-                # print(f"out_final shape: {out_final}, {out_final.shape}")
+                print(f"out_final shape: {out_final}, {out_final.shape}")
 
                 total_length += out_final.shape[0]
                 with open(f"{results_save_path}result_raw_{test_seq_list[its]}", 'w+') as f_real:
@@ -1605,7 +1608,7 @@ class CustomTrainer(train.BaseTrainer):
                 # MAGE_Transformer, return rec_face, upper, lower, hands, cls_face, upper, lower, hands
                 net_out = self._g_test(loaded_data) # theo _g_test, return rec_pose, tar_pose, rec_exps, tar_pose # đây là model đã train, prediction
                 # print(f"net_out: {net_out}") # check
-                # print(f"net_out keys: {net_out.keys()}") # check
+                print(f"net_out keys: {net_out.keys()}") # check
                 tar_pose = net_out['tar_pose']
                 rec_pose = net_out['rec_pose']
                 tar_exps = net_out['tar_exps']
@@ -1616,7 +1619,7 @@ class CustomTrainer(train.BaseTrainer):
                 # print(f"rec_exps: {rec_exps.shape}")
                 # print(rec_pose.shape, tar_pose.shape)
                 bs, n, j = tar_pose.shape[0], tar_pose.shape[1], self.joints
-                # print(f"before rec_pose, tar_pose: {rec_pose.shape}, {tar_pose.shape}")
+                print(f"before rec_pose, tar_pose: {rec_pose.shape}, {tar_pose.shape}")
                 if (30/self.args.pose_fps) != 1:
                     assert 30%self.args.pose_fps == 0
                     n *= int(30/self.args.pose_fps)
@@ -1628,7 +1631,7 @@ class CustomTrainer(train.BaseTrainer):
                 # rec_pose = rc.matrix_to_rotation_6d(rec_pose).reshape(bs, n, j*6)
                 # tar_pose = rc.rotation_6d_to_matrix(tar_pose.reshape(bs*n, j, 6))
                 # tar_pose = rc.matrix_to_rotation_6d(tar_pose).reshape(bs, n, j*6)
-                # print(f"rec_pose, tar_pose: {rec_pose.shape}, {tar_pose.shape}") # torch.Size([1, 2044, 225]), torch.Size([1, 2064, 225])
+                print(f"rec_pose, tar_pose: {rec_pose.shape}, {tar_pose.shape}") # torch.Size([1, 2044, 225]), torch.Size([1, 2064, 225])
                 # tar_pose và rec_pose đã khớp
                 
                 remain = n%self.args.vae_test_len

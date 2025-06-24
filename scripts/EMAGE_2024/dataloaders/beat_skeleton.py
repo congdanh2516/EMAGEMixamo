@@ -186,13 +186,16 @@ class CustomDataset(Dataset):
                 for j, line in enumerate(pose_data.readlines()):
                     # print(f"j, line: {j}, {line}")
                     data = np.fromstring(line, dtype=float, sep=" ") # 1*27 e.g., 27 rotation 
-                    # logger.info(f"beat_skeleton - cache_generation - data: {data}, {data.shape}")
+                    # if self.loader_type == "val":
+                    #     print(f"beat_skeleton - cache_generation - data: {data}, {data.shape}")
                     # print(f"data: {data}")
                     data =  np.array(data)
-                    # logger.info(f"DATA: {data} {len(data)}")
                     # logger.info(f"JOINT MASK: {self.joint_mask} {len(self.joint_mask)}")
                     data = data * self.joint_mask
                     data = data[self.joint_mask.astype(bool)]
+                    # if self.loader_type == "val":
+                    #     print(f"data: {data}")
+                        # d
                     pose_each_file.append(data)
 
             #     print("X1: ", len(pose_each_file_new))
@@ -428,7 +431,11 @@ class CustomDataset(Dataset):
                 start_idx = clip_s_f_pose + i * self.stride
                 fin_idx = start_idx + self.pose_length # 34
                 sample_pose = pose_each_file[start_idx:fin_idx]
-                # print(sample_pose.shape)
+
+                # torch.set_printoptions(threshold=float('inf'))
+                
+                # print(f"sample_pose.shape: {sample_pose[0]}, {sample_pose.shape}") # không có nan, lower 228 (64, 36)
+                
                 if audio_each_file != []:
                     audio_start = clip_s_f_audio + math.floor(i * self.stride * self.audio_fps / self.pose_fps)
                     audio_end = audio_start + audio_short_length
@@ -448,6 +455,9 @@ class CustomDataset(Dataset):
                 if sample_pose.any() != None:
                     # filtering motion skeleton data
                     sample_pose, filtering_message = MotionPreprocessor(sample_pose, self.mean_pose, self.joint_mask).get()
+
+                    print(f"sample_pose.shape: {sample_pose[0]}, {sample_pose.shape}") # không có nan, lơer 228 (64, 36)
+                    
                     is_correct_motion = (sample_pose != [])
                     if is_correct_motion or disable_filtering:
                         sample_pose_list.append(sample_pose)
@@ -460,6 +470,8 @@ class CustomDataset(Dataset):
                     else:
                         n_filtered_out[filtering_message] += 1
 
+            # print(f"sample_pose_list[0]: {sample_pose_list[0]}, {sample_pose_list[0].shape}") # không có nan
+
             if len(sample_pose_list) > 0:
                 with dst_lmdb_env.begin(write=True) as txn:
                     for pose, audio, facial, word, vid, emo, sem in zip(sample_pose_list,
@@ -470,9 +482,9 @@ class CustomDataset(Dataset):
                                                         sample_emo_list,
                                                         sample_sem_list,
                                                         ):
-                        normalized_pose = self.normalize_pose(pose, self.mean_pose, self.std_pose, self.joint_mask)
+                        # normalized_pose = self.normalize_pose(pose, self.mean_pose, self.std_pose, self.joint_mask)
                         k = "{:005}".format(self.n_out_samples).encode("ascii")
-                        v = [normalized_pose, audio, facial, word, emo, sem, vid]
+                        v = [pose, audio, facial, word, emo, sem, vid]
                         v = pyarrow.serialize(v).to_buffer()
                         txn.put(k, v)
                         self.n_out_samples += 1

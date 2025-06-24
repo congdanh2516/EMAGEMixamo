@@ -63,7 +63,7 @@ class BaseTrainer(object):
         # 
         self.train_data = __import__(f"dataloaders.{args.dataset}", fromlist=["something"]).CustomDataset(args, "train")
 
-        print(self.train_data[0]['pose'].shape)
+        print(f"self.train_data[0]['pose']: {self.train_data[0]['pose']}, {self.train_data[0]['pose'].shape}")
 
         # DataLoader is a class in PyTorch creating data loader
         self.train_loader = torch.utils.data.DataLoader(
@@ -83,9 +83,24 @@ class BaseTrainer(object):
         self.train_length = len(self.train_loader)
         logger.info(f"Init train dataloader success")
 
+        # torch.set_printoptions(threshold=float('inf'))
+
         # respectively, custom for validation data
         self.val_data = __import__(f"dataloaders.{args.dataset}", fromlist=["something"]).CustomDataset(args, "val")  
-        print(self.val_data[0]['pose'].shape)
+        # print(f"self.val_data: {self.val_data}")
+
+        # # Giả sử bạn đã có self.val_data
+        # sample = self.val_data[0]  # Lấy mẫu đầu tiên
+        
+        # # In toàn bộ keys (nếu sample là dict)
+        # print("Các trường có trong sample:", sample.keys())
+        
+        # # In shape và giá trị của 'pose' nếu có
+        # print("Shape của pose:", sample['pose'].shape)
+        # print("Dữ liệu pose:", sample['pose'])
+        
+        
+        # print(self.val_data[0]['pose'].shape)
         self.val_loader = torch.utils.data.DataLoader(
             self.val_data, 
             batch_size=args.batch_size,  
@@ -94,6 +109,21 @@ class BaseTrainer(object):
             drop_last=False,
             sampler=torch.utils.data.distributed.DistributedSampler(self.val_data) if args.ddp else None, 
         )
+
+        
+        # # Lấy một batch đầu tiên từ val_loader
+        # val_batch = next(iter(self.val_loader))
+        
+        # # In ra keys trong batch (nếu là dict)
+        # print("Keys trong batch:", val_batch.keys())
+        
+        # # In ra shape của pose trong batch
+        # print("Shape của pose:", val_batch['pose'].shape)
+        
+        # # In ra giá trị đầu tiên của batch (mẫu đầu tiên)
+        # logger.info(f"Pose của mẫu đầu tiên: {val_batch['pose'][0]}")
+        
+        # print(f"self.val_loader in trainer: {self.val_loader}")
         logger.info(f"Init val dataloader success")
 
         # rank is the rank of the current process

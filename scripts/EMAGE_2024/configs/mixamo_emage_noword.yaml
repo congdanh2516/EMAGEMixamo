@@ -116,14 +116,14 @@ m_pre_encoder: null
 m_encoder: null
 m_fix_pre: False
 #------------------------------------#
-# audio_rep: wave16k
+audio_rep: wave16k
 facial_rep: facial52
 speaker_id: id
 word_rep: text
 sem_rep: sem
 emo_rep: emo
 # audio config - removing
-audio_rep: onset+amplitude
+# audio_rep: onset+amplitude
 # audio_sr: 16000
 # audio_fps: 16000
 # audio_norm: False
@@ -162,13 +162,13 @@ id_rep: onehot
 speaker_f: 0
 
 # model config
-batch_size: 1
+batch_size: 3
 # warmup_epochs: 1
 # warmup_lr: 1e-6
 lr_base: 5e-4
-model: emage
+model: emage_audio
 g_name: MAGE_Transformer
-trainer: skeleton_emage
+trainer: skeleton_emage_noword
 hidden_size: 768
 n_layer: 1
  

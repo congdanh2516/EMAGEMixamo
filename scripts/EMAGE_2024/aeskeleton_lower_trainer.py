@@ -162,6 +162,7 @@ class CustomTrainer(train.BaseTrainer):
 
                 #self.opt.zero_grad()
                 #g_loss_final = 0
+                # print(f"tar_pose in aeskeleton_lower: {tar_pose}, {tar_pose.shape}")
                 net_out = self.model(tar_pose)
                 rec_pose = net_out["rec_pose"]
                 
@@ -214,12 +215,29 @@ class CustomTrainer(train.BaseTrainer):
                 for i in range(tar_pose.shape[1]//(self.pose_length)):
                     tar_pose_new = tar_pose[:,i*(self.pose_length):i*(self.pose_length)+self.pose_length,:]
                     # print(tar_pose_new.shape)
+                    # print(f"tar_pose_new: {tar_pose_new}, {tar_pose_new.shape}")
                     recon_data = self.model(tar_pose_new)
+
+                    # print(f"recon_data: {recon_data}, {recon_data.keys()}")
+                    # print(f"recon_data['rec_pose']: {recon_data['rec_pose']}")
 
                     std_pose = self.test_data.std_pose[self.test_data.joint_mask.astype(bool)]
                     mean_pose = self.test_data.mean_pose[self.test_data.joint_mask.astype(bool)]
                     out_sub = (recon_data['rec_pose'].cpu().numpy().reshape(-1, self.args.pose_dims) * std_pose) + mean_pose
+                    # experiment: in shape --> đổi chiều ouput về xyz
+                    
                     out_final = out_sub
+                    # print(f"out_final: {out_final} {out_final.shape}") # beat: 64 (pose_length), 36 (pose_dims)
+                    
+                    # # out_sub: (num_frames, num_joints * 3)
+                    # num_joints = out_sub.shape[1] // 3
+                    # out_final = out_sub.reshape(-1, 8, 3)  # (F, J, 3)
+                    
+                    # # hiện tại [Y, X, Z], thành [X, Y, Z] → đổi trục theo index [1, 0, 2]
+                    # out_final = out_final[:, :, [1, 0, 2]]  # (F, J, 3)
+                    
+                    # out_final = out_final.reshape(-1, 8 * 3)
+
 
                 total_length += out_final.shape[0]
                 with open(f"{results_save_path}result_raw_{test_seq_list[its]}", 'w+') as f_real:

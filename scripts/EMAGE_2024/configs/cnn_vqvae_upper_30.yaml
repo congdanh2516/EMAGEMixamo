@@ -14,11 +14,17 @@ out_path: ./outputs/audio2pose/
 # mean_pose_path: /beat_4english_30_full/train_clon/
 # std_pose_path: /beat_4english_30_full/train_clon/
 
-train_data_path: /beat_4english_30_full7/train_copy/ 
-val_data_path: /beat_4english_30_full7/val_copy/ 
-test_data_path: /beat_4english_30_full7/test_copy/ 
-mean_pose_path: /beat_4english_30_full7/train_copy/
-std_pose_path: /beat_4english_30_full7/train_copy/
+# train_data_path: /beat_4english_30_full7/train_copy/ 
+# val_data_path: /beat_4english_30_full7/val_copy/ 
+# test_data_path: /beat_4english_30_full7/test_copy/ 
+# mean_pose_path: /beat_4english_30_full7/train_copy/
+# std_pose_path: /beat_4english_30_full7/train_copy/
+
+train_data_path: /beat_4english_30_full9/train_copy/ 
+val_data_path: /beat_4english_30_full9/val_copy/ 
+test_data_path: /beat_4english_30_full9/test_copy/ 
+mean_pose_path: /beat_4english_30_full9/train_copy/
+std_pose_path: /beat_4english_30_full9/train_copy/
 
 stat: wandb
 dataset: beat_skeleton
@@ -108,7 +114,7 @@ rec_ver_weight: 1
 #iwa_weight: 0
 #fusion_mode: sum
 # grad_norm: 1
-epochs: 2
+epochs: 20
 test_period: 1
 
 ## Thêm vào

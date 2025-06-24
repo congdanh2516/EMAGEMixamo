@@ -106,7 +106,7 @@ class VQEncoderV6(nn.Module):
         # print(f"motion_encoder_args: {args}")
         assert len(channels) == n_down
         layers = [
-            nn.Conv1d(225, channels[0], 3, 1, 1), # 225 = input_size
+            nn.Conv1d(156, channels[0], 3, 1, 1), # 225 = input_size
             nn.LeakyReLU(0.2, inplace=True),
             ResBlock(channels[0]),
         ]
@@ -723,6 +723,7 @@ class LocalEncoder(nn.Module):
         self.channel_list = []
         self.edge_num = [len(topology)]
         print(f"self_topologies: {self.topologies}")
+        
         print(f"self.channel_base: {self.channel_base}")
         print(f"self_edge_num: {self.edge_num}")
         
@@ -742,8 +743,8 @@ class LocalEncoder(nn.Module):
         for i in range(args.num_layers):
             seq = []
             neighbour_list = find_neighbor(self.topologies[i], args.skeleton_dist)
-            in_channels = self.channel_base[i] * self.edge_num[i]
-            out_channels = self.channel_base[i + 1] * self.edge_num[i]
+            in_channels = 156 # self.channel_base[i] * self.edge_num[i]
+            out_channels = 156 # self.channel_base[i + 1] * self.edge_num[i]
             if i == 0:
                 self.channel_list.append(in_channels)
             self.channel_list.append(out_channels)
@@ -755,7 +756,7 @@ class LocalEncoder(nn.Module):
 
             if args.use_residual_blocks:
                 # (T, J, D) => (T/2, J', 2D)
-                seq.append(SkeletonResidual(self.topologies[i], neighbour_list, joint_num=self.edge_num[i], in_channels=in_channels, out_channels=out_channels,
+                seq.append(SkeletonResidual(self.topologies[i], neighbour_list, joint_num=52, in_channels=in_channels, out_channels=out_channels,
                                             kernel_size=kernel_size, stride=2, padding=padding, padding_mode=args.padding_mode, bias=bias,
                                             extra_conv=args.extra_conv, pooling_mode=args.skeleton_pool, activation=args.activation, last_pool=last_pool))
             else:

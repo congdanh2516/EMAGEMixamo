@@ -222,10 +222,33 @@ class CustomTrainer(train.BaseTrainer):
                     # print(tar_pose_new.shape)
                     recon_data = self.model(tar_pose_new)
 
+                    # print(f"recon_data: {recon_data}, {recon_data.keys()}")
+                    # print(f"recon_data['rec_pose']: {recon_data['rec_pose']}")
+
                     std_pose = self.test_data.std_pose[self.test_data.joint_mask.astype(bool)]
                     mean_pose = self.test_data.mean_pose[self.test_data.joint_mask.astype(bool)]
                     out_sub = (recon_data['rec_pose'].cpu().numpy().reshape(-1, self.args.pose_dims) * std_pose) + mean_pose
                     out_final = out_sub
+
+                    # print(f"out_final1: {out_sub}, {out_sub.shape}")
+
+                    # num_joints = out_sub.shape[1] // 3
+                    # print(f"num_joints: {num_joints}")
+                    # out_final = out_sub.reshape(-1, 32, 3)  # (F, J, 3)
+
+                    # print(f"out_final2: {out_final}, {out_final.shape}")
+                    
+                    # # Hiện tại là [Y, X, Z] → muốn thành [X, Y, Z] → đổi trục theo index [1, 0, 2]
+                    # out_final = out_final[:, :, [1, 0, 2]]  # (F, J, 3)
+                    # print(f"out_final3: {out_final}, {out_final.shape}")
+                    
+                    # # Trở lại dạng (F, J*3) để ghi ra file
+                    # out_final = out_final.reshape(-1, 32 * 3)
+                    # torch.set_printoptions(threshold=float('inf'))
+                    # print(f"out_final4: {out_final[0]}, {out_final.shape}")
+                    
+
+                    # print(f"out_final: {out_final} {out_final.shape}")
 
                 total_length += out_final.shape[0]
                 with open(f"{results_save_path}result_raw_{test_seq_list[its]}", 'w+') as f_real:
