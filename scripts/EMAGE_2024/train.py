@@ -363,8 +363,10 @@ def main_worker(rank, world_size, args):
     
             
 if __name__ == "__main__":
-    os.environ["MASTER_ADDR"]='127.0.0.1'
-    os.environ["MASTER_PORT"]='8675'
+    # os.environ["MASTER_ADDR"]='127.0.0.1'
+    # os.environ["MASTER_PORT"]='8675'
+    os.environ["MASTER_ADDR"] = os.environ.get("MASTER_ADDR", '127.0.0.1')
+    os.environ["MASTER_PORT"] = os.environ.get("MASTER_PORT", '8675')
     #os.environ["TORCH_DISTRIBUTED_DEBUG"] = "DETAIL"
     args = config.parse_args()
     if args.ddp:

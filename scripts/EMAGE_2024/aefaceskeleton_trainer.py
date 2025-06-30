@@ -56,28 +56,11 @@ class CustomTrainer(train.BaseTrainer):
         self.vel_loss = torch.nn.MSELoss(reduction='none')
         self.rec_weight = args.rec_weight
         self.vel_weight = args.vel_weight
-        self.args = args
 
-        # self.mean_pose = np.load(args.root_path+args.mean_pose_path+f"{args.pose_rep}/bvh_mean.npy")
-        # self.std_pose = np.load(args.root_path+args.mean_pose_path+f"{args.pose_rep}/bvh_std.npy")
-        
-        # self.audio_norm = args.audio_norm
-        # self.facial_norm = args.facial_norm
-        # if self.audio_norm:
-        #     self.mean_audio = np.load(args.root_path+args.mean_pose_path+f"{args.audio_rep}/npy_mean.npy")
-        #     self.std_audio = np.load(args.root_path+args.mean_pose_path+f"{args.audio_rep}/npy_std.npy")
-        # if self.facial_norm:
-        #     self.mean_facial = np.load(args.root_path+args.mean_pose_path+f"{args.facial_rep}/json_mean.npy")
-        #     self.std_facial = np.load(args.root_path+args.mean_pose_path+f"{args.facial_rep}/json_std.npy")
-
-        # self.ori_joint_list = joints_list[args.ori_joints]
-        # self.tar_joint_list = joints_list[args.tar_joints]
-        
-        ##--------------Copy from BEAT2022, ae_trainer.py------------##
-    
     def train(self, epoch):
         self.model.train()
-        
+        t_start = time.time()
+       
         ##--------------Copy from BEAT2022, ae_trainer.py------------##
         its_len = len(self.train_loader)
         ##--------------Copy from BEAT2022, ae_trainer.py------------##
@@ -85,47 +68,40 @@ class CustomTrainer(train.BaseTrainer):
         t_start = time.time()
 
         for its, dict_data in enumerate(self.train_loader):
-            tar_pose = dict_data["pose"]
-            
+            tar_exps = dict_data["facial"]
             ##--------------Copy from BEAT2022, ae_trainer.py------------##
             t_data = time.time() - t_start
-            ##--------------Copy from BEAT2022, ae_trainer.py------------##
-            
-            tar_pose = tar_pose.cuda()  
-
-            ##--------------Copy from BEAT2022, ae_trainer.py------------##
+            tar_exps = dict_data["facial"].cuda()
             t_data = time.time() - t_start
             
             ##--------------Copy from BEAT2022, ae_trainer.py------------##
             
             
             self.opt.zero_grad()
-           
-            net_out = self.model(tar_pose)
-            rec_pose = net_out["rec_pose"] 
-            # test = net_out["rec_pose"][:, :, :j*3]
-            # logger.info(f"REC_POSE: {test}")
+            net_out = self.model(tar_exps)
+            rec_pose = net_out["rec_pose"]
+
             ##-----------------Reconstruction loss------------##
-            recon_loss = self.rec_loss(rec_pose, tar_pose)
+            recon_loss = self.rec_loss(rec_pose, tar_exps)
          
             recon_loss = torch.mean(recon_loss, dim=(1, 2))
             self.loss_meters['rec_l1'].update(torch.sum(recon_loss).item()*self.rec_weight)
             recon_loss = torch.sum(recon_loss*self.rec_weight)
-            ##-----------------Reconstruction loss------------##
+            ##----------------------------------------------##
 
             ##--------------Copy from BEAT2022, ae_trainer.py------------##
             ## Cần thêm cel_weight vào file config
             # rec vel loss
+            
             if self.vel_weight > 0:  # use pose diff
-                target_diff = tar_pose[:, 1:] - tar_pose[:, :-1]
-                recon_diff = rec_pose[:, 1:] - rec_pose[:, :-1]
+                target_diff = tar_exps[:, 1:] - tar_exps[:, :-1]
+                recon_diff = rec_exps[:, 1:] - rec_exps[:, :-1]
                 vel_rec_loss = torch.mean(self.vel_loss(recon_diff, target_diff), dim=(1, 2))
                 self.loss_meters['vel_l1'].update(torch.sum(vel_rec_loss).item()*self.vel_weight)
                 recon_loss += (torch.sum(vel_rec_loss)*self.vel_weight)
 
             loss = recon_loss
-            ##--------------Copy from BEAT2022, ae_trainer.py------------##
-            
+            ##------------------------------------------------------##
             
             # ---------------------- vae -------------------------- #
             if "VQVAE" in self.args.g_name:
@@ -156,23 +132,26 @@ class CustomTrainer(train.BaseTrainer):
         with torch.no_grad():
             its_len = len(self.val_loader)
             for its, dict_data in enumerate(self.val_loader):
-                tar_pose = dict_data["pose"]
-                tar_pose = tar_pose.cuda()         
+                tar_exps = dict_data["facial"] # expressions
+                tar_exps = tar_exps.cuda()         
                 t_data = time.time() - t_start 
 
                 #self.opt.zero_grad()
                 #g_loss_final = 0
-                # print(f"tar_pose in aeskeleton_lower: {tar_pose}, {tar_pose.shape}")
-                net_out = self.model(tar_pose)
-                rec_pose = net_out["rec_pose"]
+                net_out = self.model(tar_exps)
+                rec_exps = net_out["rec_pose"]
+
+                # print(f"rec_pose: {rec_exps}, {rec_exps.shape}")
+                # print(f"tar_exps: {tar_exps}, {tar_exps.shape}")
                 
                 ##--------------Copy from BEAT2022, ae_trainer.py------------##
                 if self.vel_weight > 0:  # use pose diff
-                    target_diff = tar_pose[:, 1:] - tar_pose[:, :-1]
-                    recon_diff = rec_pose[:, 1:] - rec_pose[:, :-1]
+                    target_diff = tar_exps[:, 1:] - tar_exps[:, :-1]
+                    print(f"target_diff: {target_diff}")
+                    recon_diff = rec_exps[:, 1:] - rec_exps[:, :-1]
                     vel_rec_loss = torch.mean(self.vel_loss(recon_diff, target_diff), dim=(0, 1, 2))
                     self.loss_meters['vel_val'].update(vel_rec_loss.item())    
-                recon_loss = F.l1_loss(rec_pose, tar_pose, reduction='none')
+                recon_loss = F.l1_loss(rec_exps, tar_exps, reduction='none')
                 recon_loss = torch.mean(recon_loss, dim=(0, 1, 2))
                 loss = recon_loss
                 ##--------------Copy from BEAT2022, ae_trainer.py------------##
@@ -209,48 +188,28 @@ class CustomTrainer(train.BaseTrainer):
             ##-------------------Copy from BEAT2022, ae_trainer.py------------##
             
             for its, dict_data in enumerate(self.test_loader):
-                tar_pose = dict_data["pose"]
-                tar_pose = tar_pose.cuda()
+                tar_exps = dict_data["facial"]
+                tar_exps = tar_exps.cuda()
 
-                for i in range(tar_pose.shape[1]//(self.pose_length)):
-                    tar_pose_new = tar_pose[:,i*(self.pose_length):i*(self.pose_length)+self.pose_length,:]
-                    # print(tar_pose_new.shape)
-                    # print(f"tar_pose_new: {tar_pose_new}, {tar_pose_new.shape}")
+                for i in range(tar_exps.shape[1]//(self.pose_length)):
+                    tar_pose_new = tar_exps[:,i*(self.pose_length):i*(self.pose_length)+self.pose_length,:]
                     recon_data = self.model(tar_pose_new)
-
-                    # print(f"recon_data: {recon_data}, {recon_data.keys()}")
-                    # print(f"recon_data['rec_pose']: {recon_data['rec_pose']}")
-
-                    # -- new change
-                    # old 
-                    # std_pose = self.test_data.std_pose[self.test_data.joint_mask.astype(bool)]
-                    # mean_pose = self.test_data.mean_pose[self.test_data.joint_mask.astype(bool)]
-                    # out_sub = (recon_data['rec_pose'].cpu().numpy().reshape(-1, self.args.pose_dims) * std_pose) + mean_pose
-                    #old
-                    out_sub = recon_data['rec_pose'].cpu().numpy().reshape(-1, self.args.pose_dims)
-                    # -- new change
-                    
-                    # experiment: in shape --> đổi chiều ouput về xyz
-                    
-                    out_final = out_sub
-                    # print(f"out_final: {out_final} {out_final.shape}") # beat: 64 (pose_length), 36 (pose_dims)
-                    
-                    # # out_sub: (num_frames, num_joints * 3)
-                    # num_joints = out_sub.shape[1] // 3
-                    # out_final = out_sub.reshape(-1, 8, 3)  # (F, J, 3)
-                    
-                    # # hiện tại [Y, X, Z], thành [X, Y, Z] → đổi trục theo index [1, 0, 2]
-                    # out_final = out_final[:, :, [1, 0, 2]]  # (F, J, 3)
-                    
-                    # out_final = out_final.reshape(-1, 8 * 3)
-
-
+                    std_pose = self.test_data.std_pose[self.test_data.joint_mask.astype(bool)]
+                    mean_pose = self.test_data.mean_pose[self.test_data.joint_mask.astype(bool)]
+                    print(f"recon_data: {recon_data}, {recon_data.keys}")
+                    print(f"recon_data['rec_pose']: {recon_data['rec_pose']}, {recon_data['rec_pose'].shape}")
+                    print(f"self.args.pose_dims: {self.args.pose_dims}")
+                    print(f"std_pose: {std_pose}, {std_pose.shape}")
+                    out_sub = (recon_data['rec_pose'].cpu().numpy().reshape(-1, self.args.pose_dims) * std_pose) + mean_pose
+                    if i != 0:
+                        out_final = np.concatenate((out_final,out_sub), 0)
+                    else:
+                        out_final = out_sub
                 total_length += out_final.shape[0]
                 with open(f"{results_save_path}result_raw_{test_seq_list[its]}", 'w+') as f_real:
                     for line_id in range(out_final.shape[0]): #,args.pre_frames, args.pose_length
                         line_data = np.array2string(out_final[line_id], max_line_width=np.inf, precision=6, suppress_small=False, separator=' ')
                         f_real.write(line_data[1:-2]+'\n')
-                        
             data_tools.result2target_vis(self.pose_version, results_save_path, results_save_path, self.test_demo, False)
             
         end_time = time.time() - start_time

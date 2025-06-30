@@ -19,18 +19,24 @@ out_path: ./outputs/audio2pose/
 # mean_pose_path: /beat_4english_30_full7/train_copy/
 # std_pose_path: /beat_4english_30_full7/train_copy/
 
-train_data_path: /beat_4english_30_full8/train_copy/ 
-val_data_path: /beat_4english_30_full8/val_copy/ 
-test_data_path: /beat_4english_30_full8/test_copy/ 
-mean_pose_path: /beat_4english_30_full8/train_copy/
-std_pose_path: /beat_4english_30_full8/train_copy/
+# train_data_path: /beat_4english_30_full8/train_copy/ 
+# val_data_path: /beat_4english_30_full8/val_copy/ 
+# test_data_path: /beat_4english_30_full8/test_copy/ 
+# mean_pose_path: /beat_4english_30_full8/train_copy/
+# std_pose_path: /beat_4english_30_full8/train_copy/
+
+train_data_path: /beat_4english_30_full9/train_copy/ 
+val_data_path: /beat_4english_30_full9/val_copy/ 
+test_data_path: /beat_4english_30_full9/test_copy/ 
+mean_pose_path: /beat_4english_30_full9/train_copy/
+std_pose_path: /beat_4english_30_full9/train_copy/
 
 stat: wandb
 dataset: beat_skeleton
 new_cache: True
 
-# ori_joints: beat_smplx_joints
-# tar_joints: beat_smplx_upper
+ori_joints: beat_smplx_joints
+tar_joints: beat_smplx_upper
 pose_rep: skeleton_cache
 # pose_norm: False
 
@@ -70,13 +76,15 @@ facial_dims: 51 # change to work with ARKit(52-tongue=51)
 ##-----Keep unchanged-------##
 word_index_num: 11195
 word_dims: 300
-batch_size: 128
+batch_size: 64
 lr_base: 3e-4
 decay_epochs: 780
 model: motion_representation
 g_name: VQVAEConvZero
 trainer: aeskeleton_hand # change to work with skeleton
 ##---------------------------##
+
+# audio_rep: wave16k
 
 # audio_f: 256
 # a_pre_encoder: tcn_camn
@@ -111,8 +119,8 @@ rec_ver_weight: 1
 #iwa_weight: 0
 #fusion_mode: sum
 # grad_norm: 1
-epochs: 4
-test_period: 1
+epochs: 800
+test_period: 100
 
 ## Thêm vào
 multi_length_training: [1] #Vì trong data loader cần biến này#

@@ -196,7 +196,7 @@ class CustomTrainer(train.BaseTrainer):
         if os.path.exists(results_save_path): 
             return 0
         os.makedirs(results_save_path)
-        print(f"results_save_path: {results_save_path}")
+        # print(f"results_save_path: {results_save_path}")
         start_time = time.time()
         total_length = 0
 
@@ -225,9 +225,9 @@ class CustomTrainer(train.BaseTrainer):
                     # print(f"recon_data: {recon_data}, {recon_data.keys()}")
                     # print(f"recon_data['rec_pose']: {recon_data['rec_pose']}")
 
-                    std_pose = self.test_data.std_pose[self.test_data.joint_mask.astype(bool)]
-                    mean_pose = self.test_data.mean_pose[self.test_data.joint_mask.astype(bool)]
-                    out_sub = (recon_data['rec_pose'].cpu().numpy().reshape(-1, self.args.pose_dims) * std_pose) + mean_pose
+                    # std_pose = self.test_data.std_pose[self.test_data.joint_mask.astype(bool)]
+                    # mean_pose = self.test_data.mean_pose[self.test_data.joint_mask.astype(bool)]
+                    out_sub = recon_data['rec_pose'].cpu().numpy().reshape(-1, self.args.pose_dims)
                     out_final = out_sub
 
                     # print(f"out_final1: {out_sub}, {out_sub.shape}")

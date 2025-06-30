@@ -1,3 +1,4 @@
+
 import os
 import pickle
 import math
@@ -16,7 +17,7 @@ from torch.utils.data import Dataset
 import torch.distributed as dist
 import pyarrow
 from sklearn.preprocessing import normalize
-# import librosa 
+import librosa 
 import scipy.io.wavfile
 from scipy import signal
 from .build_vocab import Vocab
@@ -71,6 +72,9 @@ class CustomDataset(Dataset):
         # logger.info(f"SELF JOINT MASK KEY: {self.ori_joint_list.keys()}")
         # logger.info(f"SELF JOINT: {self.joints}")
         self.joint_mask = np.zeros(self.joints*3)
+        print(f"agrs: {args}")
+        print(f"args.tar_joints: {args.tar_joints}")
+        print(f"self.tar_joint_list: {self.tar_joint_list}")
         for joint_name in self.tar_joint_list:
             if joint_name == "Hips":
                 self.joint_mask[3:6] = 1
@@ -93,7 +97,21 @@ class CustomDataset(Dataset):
         if self.word_rep is not None:
             with open(f"{args.root_path}{args.train_data_path[:-11]}vocab.pkl", 'rb') as f:
                 self.lang_model = pickle.load(f)
-        preloaded_dir = self.data_dir + f"{self.pose_rep}_cache"
+
+        if "skeleton_hand" in args.tar_joints:
+            preloaded_dir = self.data_dir + f"{self.pose_rep}_hand_cache"
+        elif "skeleton_face" in args.tar_joints:
+            preloaded_dir = self.data_dir + f"{self.pose_rep}_face_cache"
+        elif "skeleton_lower" in args.tar_joints:
+            preloaded_dir = self.data_dir + f"{self.pose_rep}_lower_cache"
+        elif "skeleton_upper" in args.tar_joints:
+             preloaded_dir = self.data_dir + f"{self.pose_rep}_upper_cache"
+        elif "skeleton_joint_full" in args.tar_joints: # using beat_skeleton_new
+             preloaded_dir = self.data_dir + f"{self.pose_rep}_full_cache"
+        elif args.tar_joints == None:
+            print(f"face none")
+            d
+            
         ##----------------------cả beat_sep_lower.py và beat_sep.py đều không dùng đoạn này-------------##
         ##beat.py 2022 thì có dùng
         self.mean_pose = np.load(args.root_path+args.mean_pose_path+f"{args.pose_rep}/bvh_mean.npy")
@@ -169,6 +187,7 @@ class CustomDataset(Dataset):
         n_filtered_out = defaultdict(int)
     
         for pose_file in pose_files:
+            ext = ".npz" if "smplx" in self.args.pose_rep else ".bvh"
             pose_each_file = []
             pose_each_file_new = []
             audio_each_file = []
@@ -180,7 +199,7 @@ class CustomDataset(Dataset):
             
             id_pose = pose_file.split("/")[-1][:-4] #1_wayne_0_1_1
             logger.info(colored(f"# ---- Building cache for Pose   {id_pose} ---- #", "blue"))
-            print(f"pose_file: {pose_file}")
+            # print(f"pose_file: {pose_file}")
             with open(pose_file, "r") as pose_data:
                 # print(f"pose_file: {pose_files}")
                 for j, line in enumerate(pose_data.readlines()):
@@ -188,7 +207,6 @@ class CustomDataset(Dataset):
                     data = np.fromstring(line, dtype=float, sep=" ") # 1*27 e.g., 27 rotation 
                     # if self.loader_type == "val":
                     #     print(f"beat_skeleton - cache_generation - data: {data}, {data.shape}")
-                    # print(f"data: {data}")
                     data =  np.array(data)
                     # logger.info(f"JOINT MASK: {self.joint_mask} {len(self.joint_mask)}")
                     data = data * self.joint_mask
@@ -220,17 +238,58 @@ class CustomDataset(Dataset):
             pose_each_file = np.array(pose_each_file) # n frames * 27
             # shape_each_file = np.repeat(np.array(-1).reshape(1, 1), pose_each_file.shape[0], axis=0)
 
-            if self.audio_rep is not None:
+            # if self.audio_rep is not None:
+            #     logger.info(f"# ---- Building cache for Audio  {id_pose} and Pose {id_pose} ---- #")
+            #     # print(f"pose_file: {pose_file}")
+            #     audio_file = pose_file.replace(self.pose_rep, self.audio_rep).replace("bvh", "npy")
+            #     try:
+            #         audio_each_file = np.load(audio_file)
+            #     except:
+            #         logger.warning(f"# ---- file not found for Audio {id_pose}, skip all files with the same id ---- #")
+            #         continue
+            #     if self.audio_norm: 
+            #         audio_each_file = (audio_each_file - self.mean_audio) / self.std_audio
+
+
+            if self.args.audio_rep is not None:
                 logger.info(f"# ---- Building cache for Audio  {id_pose} and Pose {id_pose} ---- #")
-                print(f"pose_file: {pose_file}")
-                audio_file = pose_file.replace(self.pose_rep, self.audio_rep).replace("bvh", "npy")
-                try:
-                    audio_each_file = np.load(audio_file)
-                except:
-                    logger.warning(f"# ---- file not found for Audio {id_pose}, skip all files with the same id ---- #")
+                # print(f"{pose_file}")
+                audio_file = pose_file.replace(self.args.pose_rep, 'wave16k').replace(ext, ".wav")
+                print(f"audio file: {audio_file}")
+                if not os.path.exists(audio_file):
+                    logger.warning(f"# ---- file not found for Audio  {id_pose}, skip all files with the same id ---- #")
+                    pose_files = [file for file in pose_files if file != id_pose]
+                    # pose_files = pose_files.drop(pose_files[pose_files['id'] == id_pose].index)
+                    # self.selected_file = self.selected_file.drop(self.selected_file[self.selected_file['id'] == id_pose].index) 
+                    # selected_file la dataframe vi no dang su dung itterows() trong for loop, trong khi pose_files dang la kieu list
+                    
                     continue
-                if self.audio_norm: 
+                audio_each_file, sr = librosa.load(audio_file)
+                print(f"audio_each_file load: {audio_each_file.shape}")
+                audio_each_file = librosa.resample(audio_each_file, orig_sr=sr, target_sr=self.args.audio_sr)
+                print(f"audio_each_file resample: {audio_each_file.shape}")
+                if self.args.audio_rep == "onset+amplitude":
+                    from numpy.lib import stride_tricks
+                    frame_length = 1024
+                    # hop_length = 512
+                    shape = (audio_each_file.shape[-1] - frame_length + 1, frame_length)
+                    strides = (audio_each_file.strides[-1], audio_each_file.strides[-1])
+                    rolling_view = stride_tricks.as_strided(audio_each_file, shape=shape, strides=strides)
+                    amplitude_envelope = np.max(np.abs(rolling_view), axis=1)
+                    # pad the last frame_length-1 samples
+                    amplitude_envelope = np.pad(amplitude_envelope, (0, frame_length-1), mode='constant', constant_values=amplitude_envelope[-1])
+                    audio_onset_f = librosa.onset.onset_detect(y=audio_each_file, sr=self.args.audio_sr, units='frames')
+                    onset_array = np.zeros(len(audio_each_file), dtype=float)
+                    onset_array[audio_onset_f] = 1.0
+                    # print(amplitude_envelope.shape, audio_each_file.shape, onset_array.shape)
+                    audio_each_file = np.concatenate([amplitude_envelope.reshape(-1, 1), onset_array.reshape(-1, 1)], axis=1)
+                elif self.args.audio_rep == "mfcc":
+                    audio_each_file = librosa.feature.melspectrogram(y=audio_each_file, sr=self.args.audio_sr, n_mels=128, hop_length=int(self.args.audio_sr/self.args.audio_fps))
+                    audio_each_file = audio_each_file.transpose(1, 0)
+                    # print(audio_each_file.shape, pose_each_file.shape)
+                if self.args.audio_norm and self.args.audio_rep == "wave16k": 
                     audio_each_file = (audio_each_file - self.mean_audio) / self.std_audio
+            
                     
             if self.facial_rep is not None:
                 logger.info(f"# ---- Building cache for Facial {id_pose} and Pose {id_pose} ---- #")
@@ -456,7 +515,7 @@ class CustomDataset(Dataset):
                     # filtering motion skeleton data
                     sample_pose, filtering_message = MotionPreprocessor(sample_pose, self.mean_pose, self.joint_mask).get()
 
-                    print(f"sample_pose.shape: {sample_pose[0]}, {sample_pose.shape}") # không có nan, lơer 228 (64, 36)
+                    # print(f"sample_pose.shape: {sample_pose[0]}, {sample_pose.shape}") # không có nan, lơer 228 (64, 36)
                     
                     is_correct_motion = (sample_pose != [])
                     if is_correct_motion or disable_filtering:

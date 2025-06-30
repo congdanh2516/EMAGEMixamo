@@ -55,7 +55,7 @@ project: emage_skeleton
 
 ##-----Keep unchanged-------##
 vae_test_len: 64
-vae_test_dim: 36
+vae_test_dim: 39
 vae_test_stride: 20
 vae_length: 256
 vae_codebook_size: 256
@@ -65,7 +65,7 @@ variational: False
 ##---------------------------##
 
 # pose_dims: 78
-pose_dims: 36 # change to work with skeleton
+pose_dims: 39 # change to work with skeleton
 
 pose_length: 64 #keep unchanged
 stride: 20 #keep unchanged
@@ -76,7 +76,7 @@ facial_dims: 51 # change to work with ARKit(52-tongue=51)
 ##-----Keep unchanged-------##
 word_index_num: 11195
 word_dims: 300
-batch_size: 32
+batch_size: 64
 lr_base: 3e-4
 decay_epochs: 99
 model: motion_representation
@@ -118,8 +118,8 @@ rec_ver_weight: 1
 #iwa_weight: 0
 #fusion_mode: sum
 # grad_norm: 1
-epochs: 4
-test_period: 1
+epochs: 800
+test_period: 100
 
 ## Thêm vào
 multi_length_training: [1] #Vì trong data loader cần biến này#

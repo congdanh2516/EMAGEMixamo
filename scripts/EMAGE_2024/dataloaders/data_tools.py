@@ -278,7 +278,6 @@ joints_list = {
 
     
     'skeleton_joint_upper': {
-        'Hips':         [6,6],
         'Spine':        [3,9],
         'Spine1':       [3,12],
         'Spine2':       [3,15],
@@ -345,6 +344,7 @@ joints_list = {
     },
 
     'skeleton_joint_lower': {
+        'Hips':         [6,6],
         'RUpLeg':       [3,195],
         'RLeg':         [3,198],
         'RFoot':        [3,201],
@@ -365,7 +365,6 @@ joints_list = {
     },
 
     'skeleton_upper': {
-        'Hips':         6,
         'Spine':        3,
         'Spine1':       3,
         'Spine2':       3,
@@ -432,6 +431,7 @@ joints_list = {
     },
 
     'skeleton_lower': {
+        'Hips':         3,
         'RUpLeg':       3,
         'RLeg':         3,
         'RFoot':        3,
@@ -2312,7 +2312,7 @@ class FIDCalculator(object):
              
 
 def result2target_vis(pose_version, res_bvhlist, save_path, demo_name, verbose=True):
-    print(f"pose version: {pose_version}")
+    # print(f"pose version: {pose_version}")
     if "trinity" in pose_version:
         ori_list = joints_list[pose_version[6:-4]] 
         target_list = joints_list[pose_version[6:]] 
@@ -2402,9 +2402,9 @@ def result2target_vis(pose_version, res_bvhlist, save_path, demo_name, verbose=T
                 wirte_file.write(line)
                 
             offset_data = pose_data_pre_file[file_content_length]
-            print(f"1_offset_data: {offset_data}, len: {len(offset_data)}")
+            # print(f"1_offset_data: {offset_data}, len: {len(offset_data)}")
             offset_data = np.fromstring(offset_data, dtype=float, sep=' ')
-            print(f"2_offset_data: {offset_data}, {len(offset_data)}")
+            # print(f"2_offset_data: {offset_data}, {len(offset_data)}")
         wirte_file.close()
 
         wirte_file = open(os.path.join(save_path, f'res_{short_name}'),'r')
@@ -2429,15 +2429,14 @@ def result2target_vis(pose_version, res_bvhlist, save_path, demo_name, verbose=T
                         pass
                     else:          
                         data = np.fromstring(line, dtype=float, sep=' ') # ket qua du doan cua mo hinh, mang = num_joint * 3
-                        print(f"data: {data}, len: {len(data)}")
+                        # print(f"data: {data}, len: {len(data)}")
                         data_rotation = offset_data.copy() 
-                        print(f"data_rotation: {data_rotation}, {len(data_rotation)}")
-                        d
+                        # print(f"data_rotation: {data_rotation}, {len(data_rotation)}")
                         # print(f"target_list.items(): {target_list.items()}")
                         # print(f"len(data): {len(data)}")
                         
                         for iii, (k, v) in enumerate(target_list.items()): # here is 147 rotations by 3 # target_list la cac joint cua (sub-)module, chi chua ten joint va so luong join
-                            print(f"iii, k, v: {iii}, {k}, {v}") # no, name, num_joint (trong mang 1 phan tu)
+                            # print(f"iii, k, v: {iii}, {k}, {v}") # no, name, num_joint (trong mang 1 phan tu)
                             if iii*3+3 < len(data): # len(data) la so luong gia tri = num_joint * 3, data là output cua mo hinh train, trong file ket qua xuat ra á
                                 # print(f"{ori_list[k][1]}, {v}, {v[0]}")
                                 # print(f"data_rotation[{ori_list[k][1]} - {v[0]} : {ori_list[k][1]}]")
