@@ -97,15 +97,26 @@ class CustomDataset(Dataset):
         
         preloaded_dir = ""
 
-        if "mixamo_hand" in args.tar_joints:
+        # if "mixamo_hand" in args.tar_joints:
+        #     preloaded_dir = self.data_dir + f"{self.pose_rep}_hand_cache"
+        # elif "mixamo_face" in args.tar_joints:
+        #     preloaded_dir = self.data_dir + f"{self.pose_rep}_face_cache"
+        # elif "mixamo_lower" in args.tar_joints:
+        #     preloaded_dir = self.data_dir + f"{self.pose_rep}_lower_cache"
+        # elif "mixamo_upper" in args.tar_joints:
+        #      preloaded_dir = self.data_dir + f"{self.pose_rep}_upper_cache"
+        # elif "mixamo_joint_full" in args.tar_joints: # using beat_skeleton_new
+        #      preloaded_dir = self.data_dir + f"{self.pose_rep}_full_cache"
+
+        if "skeleton_hand" in args.tar_joints:
             preloaded_dir = self.data_dir + f"{self.pose_rep}_hand_cache"
-        elif "mixamo_face" in args.tar_joints:
+        elif "skeleton_face" in args.tar_joints:
             preloaded_dir = self.data_dir + f"{self.pose_rep}_face_cache"
-        elif "mixamo_lower" in args.tar_joints:
+        elif "skeleton_lower" in args.tar_joints:
             preloaded_dir = self.data_dir + f"{self.pose_rep}_lower_cache"
-        elif "mixamo_upper" in args.tar_joints:
+        elif "skeleton_upper" in args.tar_joints:
              preloaded_dir = self.data_dir + f"{self.pose_rep}_upper_cache"
-        elif "mixamo_joint_full" in args.tar_joints: # using beat_skeleton_new
+        elif "skeleton_joint_full" in args.tar_joints: # using beat_skeleton_new
              preloaded_dir = self.data_dir + f"{self.pose_rep}_full_cache"
             
         ##----------------------cả beat_sep_lower.py và beat_sep.py đều không dùng đoạn này-------------##
