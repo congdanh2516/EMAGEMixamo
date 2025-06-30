@@ -93,7 +93,7 @@ class CustomTrainer(train.BaseTrainer):
         #             self.joint_mask[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
         # ======
 
-        self.joints = 52
+        self.joints = len(self.ori_joint_list) # 52
        
         self.joint_mask_face = np.zeros(len(list(self.ori_joint_list.keys()))*3)
         
@@ -592,8 +592,8 @@ class CustomTrainer(train.BaseTrainer):
         
         index_in = torch.stack([tar_index_value_upper_top, tar_index_value_hands_top, tar_index_value_lower_top], dim=-1).long()
         
-        tar_pose_6d = rc.axis_angle_to_matrix(tar_pose.reshape(bs, n, 52, 3))
-        tar_pose_6d = rc.matrix_to_rotation_6d(tar_pose_6d).reshape(bs, n, 52*6)
+        tar_pose_6d = rc.axis_angle_to_matrix(tar_pose.reshape(bs, n, self.joints, 3))
+        tar_pose_6d = rc.matrix_to_rotation_6d(tar_pose_6d).reshape(bs, n, self.joints*6)
         # latent_all = torch.cat([tar_pose, tar_trans, tar_contact], dim=-1)
         # print(f"BEFORE CONCAT tar_pose.shape: {tar_pose.shape}") #[8, 64, 225]
         latent_all = tar_pose
@@ -897,7 +897,7 @@ class CustomTrainer(train.BaseTrainer):
             
             # rec_pose = rc.axis_angle_to_matrix(rec_pose.reshape(bs, n, j, 3))
             # rec_pose = rc.matrix_to_rotation_6d(rec_pose).reshape(bs, n, j*3)
-            rec_pose = rec_pose.reshape(bs, n, 52*3)
+            rec_pose = rec_pose.reshape(bs, n, self.joints*3)
             # print(f"rec_pose.shape: {rec_pose}, {rec_pose.shape}")
             # print(f"rec_pose after reshape: {rec_pose.shape}")
 
@@ -1128,7 +1128,7 @@ class CustomTrainer(train.BaseTrainer):
             # rec_trans = torch.cat([rec_x_trans, rec_y_trans, rec_z_trans], dim=-1)
             # latent_last = torch.cat([rec_pose, rec_trans, rec_lower_last[:, :, 57:61]], dim=-1)
             # print(f"rec_poseee.shape: {rec_pose.shape}")
-            rec_pose = rec_pose.reshape(bs, n, 52*3)
+            rec_pose = rec_pose.reshape(bs, n, self.joints*3)
             latent_last = rec_pose
 
         rec_index_face = torch.cat(rec_index_all_face, dim=1)
@@ -1205,7 +1205,7 @@ class CustomTrainer(train.BaseTrainer):
         # rec_pose = rc.axis_angle_to_matrix(rec_pose.reshape(bs*n, j, 3))
         # rec_pose = rc.matrix_to_rotation_6d(rec_pose).reshape(bs, n, j*6)
 
-        rec_pose = rec_pose.reshape(bs, n, 52*3)
+        rec_pose = rec_pose.reshape(bs, n, self.joints*3)
         # print(f"rec_pose after reshape: {rec_pose.shape}")
         
         # tar_pose = rc.axis_angle_to_matrix(tar_pose.reshape(bs*n, j, 3))

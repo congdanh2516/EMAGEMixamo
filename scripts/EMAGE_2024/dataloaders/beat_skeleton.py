@@ -1,4 +1,3 @@
-
 import os
 import pickle
 import math
@@ -69,12 +68,7 @@ class CustomDataset(Dataset):
         #         self.joint_mask[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
         # else:
         self.joints = len(list(self.ori_joint_list.keys())) + 1
-        # logger.info(f"SELF JOINT MASK KEY: {self.ori_joint_list.keys()}")
-        # logger.info(f"SELF JOINT: {self.joints}")
         self.joint_mask = np.zeros(self.joints*3)
-        print(f"agrs: {args}")
-        print(f"args.tar_joints: {args.tar_joints}")
-        print(f"self.tar_joint_list: {self.tar_joint_list}")
         for joint_name in self.tar_joint_list:
             if joint_name == "Hips":
                 self.joint_mask[3:6] = 1
@@ -98,19 +92,21 @@ class CustomDataset(Dataset):
             with open(f"{args.root_path}{args.train_data_path[:-11]}vocab.pkl", 'rb') as f:
                 self.lang_model = pickle.load(f)
 
-        if "skeleton_hand" in args.tar_joints:
+
+        # training multiple sub-modules in parallel at the same time
+        
+        preloaded_dir = ""
+
+        if "mixamo_hand" in args.tar_joints:
             preloaded_dir = self.data_dir + f"{self.pose_rep}_hand_cache"
-        elif "skeleton_face" in args.tar_joints:
+        elif "mixamo_face" in args.tar_joints:
             preloaded_dir = self.data_dir + f"{self.pose_rep}_face_cache"
-        elif "skeleton_lower" in args.tar_joints:
+        elif "mixamo_lower" in args.tar_joints:
             preloaded_dir = self.data_dir + f"{self.pose_rep}_lower_cache"
-        elif "skeleton_upper" in args.tar_joints:
+        elif "mixamo_upper" in args.tar_joints:
              preloaded_dir = self.data_dir + f"{self.pose_rep}_upper_cache"
-        elif "skeleton_joint_full" in args.tar_joints: # using beat_skeleton_new
+        elif "mixamo_joint_full" in args.tar_joints: # using beat_skeleton_new
              preloaded_dir = self.data_dir + f"{self.pose_rep}_full_cache"
-        elif args.tar_joints == None:
-            print(f"face none")
-            d
             
         ##----------------------cả beat_sep_lower.py và beat_sep.py đều không dùng đoạn này-------------##
         ##beat.py 2022 thì có dùng
@@ -265,9 +261,9 @@ class CustomDataset(Dataset):
                     
                     continue
                 audio_each_file, sr = librosa.load(audio_file)
-                print(f"audio_each_file load: {audio_each_file.shape}")
+                # print(f"audio_each_file load: {audio_each_file.shape}")
                 audio_each_file = librosa.resample(audio_each_file, orig_sr=sr, target_sr=self.args.audio_sr)
-                print(f"audio_each_file resample: {audio_each_file.shape}")
+                # print(f"audio_each_file resample: {audio_each_file.shape}")
                 if self.args.audio_rep == "onset+amplitude":
                     from numpy.lib import stride_tricks
                     frame_length = 1024

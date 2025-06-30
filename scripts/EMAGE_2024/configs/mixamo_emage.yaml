@@ -51,7 +51,7 @@ std_pose_path: /beat_4english_30_mixamo/train_copy/
 
 stat: wandb
 dataset: beat_skeleton_new
-new_cache: True
+new_cache: False
 pose_rep: skeleton_cache
 
 # motion config
