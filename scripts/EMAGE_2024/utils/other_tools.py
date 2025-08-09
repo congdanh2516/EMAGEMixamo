@@ -861,6 +861,26 @@ def load_checkpoints(model, save_path, load_name='model'):
         model.load_state_dict(states['model_state'], strict=False)
     logger.info(f"load self-pretrained checkpoints for {load_name}")
 
+def load_checkpoints_resume(model, opt=None, scheduler=None, path=None):
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Checkpoint not found: {path}")
+
+    checkpoint = torch.load(path, map_location='cpu')
+
+    if isinstance(model, torch.nn.parallel.DistributedDataParallel):
+        model.module.load_state_dict(checkpoint['model_state'])
+    else:
+        model.load_state_dict(checkpoint['model_state'])
+
+    if opt is not None and 'opt_state' in checkpoint:
+        opt.load_state_dict(checkpoint['opt_state'])
+
+    if scheduler is not None and 'lrs' in checkpoint:
+        scheduler.load_state_dict(checkpoint['lrs'])
+
+    return checkpoint.get('epoch', 0)
+
+
 def model_complexity(model, args):
     from ptflops import get_model_complexity_info
     flops, params = get_model_complexity_info(model,  (args.T_GLOBAL._DIM, args.TRAIN.CROP, args.TRAIN), 

@@ -1,65 +1,42 @@
 is_train: True
-root_path: /data/nas07/PersonalData/danh/PantoMatrix
-out_path: ./outputs/audio2pose_mixamo/ 
-# train_data_path: /beat_4english_30_full/train_copy/ 
-# val_data_path: /beat_4english_30_full/val_copy/ 
-# test_data_path: /beat_4english_30_full/test_copy/ 
-# mean_pose_path: /beat_4english_30_full/train_copy/
-# std_pose_path: /beat_4english_30_full/train_copy/
+out_path: ./outputs/audio2pose_lowerfoot_mixamo/ 
 
-# train_data_path: /beat_4english_30_mixamo2/train_copy/ 
-# val_data_path: /beat_4english_30_mixamo2/val_copy/ 
-# test_data_path: /beat_4english_30_mixamo2/test_copy/ 
-# mean_pose_path: /beat_4english_30_mixamo2/train_copy/
-# std_pose_path: /beat_4english_30_mixamo2/train_copy/
+# root_path: /data/nas07/PersonalData/danh/EMAGEMixamo
+# train_data_path: /mixamo_english_30_2_1/train_norm/ 
+# val_data_path: /mixamo_english_30_2_1/val_norm/ 
+# test_data_path: /mixamo_english_30_2_1/test_norm/ 
+# mean_pose_path: /mixamo_english_30_2_1/train_norm/
+# std_pose_path: /mixamo_english_30_2_1/train_norm/
 
-# train_data_path: /beat_4english_30_mixamo3/train_copy/ 
-# val_data_path: /beat_4english_30_mixamo3/val_copy/ 
-# test_data_path: /beat_4english_30_mixamo3/test_copy/ 
-# mean_pose_path: /beat_4english_30_mixamo3/train_copy/
-# std_pose_path: /beat_4english_30_mixamo3/train_copy/
+# root_path: /data/nas07/PersonalData/danh/EMAGEMixamo
+# train_data_path: /mixamo_english_30_4_v2/train_norm/ 
+# val_data_path: /mixamo_english_30_4_v2/val_norm/ 
+# test_data_path: /mixamo_english_30_4_v2/test_norm/ 
+# mean_pose_path: /mixamo_english_30_4_v2/train_norm/
+# std_pose_path: /mixamo_english_30_4_v2/train_norm/
 
-# train_data_path: /beat_4english_30_mixamo4/train_copy/ 
-# val_data_path: /beat_4english_30_mixamo4/val_copy/ 
-# test_data_path: /beat_4english_30_mixamo4/test_copy/ 
-# mean_pose_path: /beat_4english_30_mixamo4/train_copy/
-# std_pose_path: /beat_4english_30_mixamo4/train_copy/
+root_path: /data/nas07/PersonalData/danh/EMAGEMixamo
 
-# train_data_path: /beat_4english_30_mixamo5/train_copy/ 
-# val_data_path: /beat_4english_30_mixamo5/val_copy/ 
-# test_data_path: /beat_4english_30_mixamo5/test_copy/ 
-# mean_pose_path: /beat_4english_30_mixamo5/train_copy/
-# std_pose_path: /beat_4english_30_mixamo5/train_copy/
+train_data_path: /mixamo_english_30_4_811_all/train_norm/ 
+val_data_path: /mixamo_english_30_4_811_all/val_norm/ 
+test_data_path: /mixamo_english_30_4_811_all/test_norm/ 
+mean_pose_path: /mixamo_english_30_4_811_all/train_norm/
+std_pose_path: /mixamo_english_30_4_811_all/train_norm/
 
-train_data_path: /beat_4english_30_mixamo6/train_copy/ 
-val_data_path: /beat_4english_30_mixamo6/val_copy/ 
-test_data_path: /beat_4english_30_mixamo6/test_copy/ 
-mean_pose_path: /beat_4english_30_mixamo6/train_copy/
-std_pose_path: /beat_4english_30_mixamo6/train_copy/
+cache_path: standardize_pose/  # nằm trong folder data
 
-# train_data_path: /beat_4english_30_141/train/ 
-# val_data_path: /beat_4english_30_141/val/ 
-# test_data_path: /beat_4english_30_141/test/ 
-# mean_pose_path: /beat_4english_30_141/train/
-# std_pose_path: /beat_4english_30_141/train/
-
-stat: wandb
-dataset: beat_skeleton
-new_cache: True
-
-# ori_joints: beat_smplx_joints
-# tar_joints: beat_smplx_upper
-pose_rep: skeleton_cache
-# pose_norm: False
-
+new_cache: False
+loader_workers: 2
+batch_size: 64
 #-- Need to be changed to work with skeleton
 ori_joints: mixamo_joint_full
 tar_joints: mixamo_lower
 pose_version: mixamo_lower
 pose_fps: 30
-
-
 pose_rep: bvh_rot
+
+stat: ts
+dataset: mixamo_skeleton_lower_final
 
 ##-----Keep unchanged-------##
 ddp: False
@@ -67,36 +44,25 @@ project: emage_skeleton
 
 ##-----Keep unchanged-------##
 vae_test_len: 64
-vae_test_dim: 24
+vae_test_dim: 59
+pose_dims: 59 # 9*6+ (2 của contact) + (3 của translation)
 vae_test_stride: 20
 vae_length: 256
 vae_codebook_size: 256
-vae_layer: 2
+vae_layer: 4
 vae_grow: [1,1,2,1]
 variational: False
 ##---------------------------##
-
-# pose_dims: 78
-pose_dims: 24 # change to work with skeleton
-
 pose_length: 64 #keep unchanged
 stride: 20 #keep unchanged
-
-# facial_dims: 100
-facial_dims: 51 # change to work with ARKit(52-tongue=51)
-
-##-----Keep unchanged-------##
-word_index_num: 11195
-word_dims: 300
-batch_size: 4
 lr_base: 3e-4
-decay_epochs: 99
+decay_epochs: 780
 model: motion_representation
 g_name: VQVAEConvZero #VAEConvZero
-trainer: aeskeleton_lower # change to work with skeleton
+trainer: mixamo_lower_final # change to work with skeleton
 ##---------------------------##
 
-pretrain: True
+pretrain: False
 # audio_f: 256
 # a_pre_encoder: tcn_camn
 # a_encoder: lp
@@ -131,7 +97,7 @@ rec_ver_weight: 1
 #fusion_mode: sum
 # grad_norm: 1
 epochs: 800
-test_period: 40
+test_period: 10
 
 ## Thêm vào
 multi_length_training: [1] #Vì trong data loader cần biến này#

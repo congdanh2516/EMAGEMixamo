@@ -71,13 +71,6 @@ class VAESKConv(VAEConv):
         smpl_data = np.load(smpl_fname, encoding='latin1')
         parents = smpl_data['kintree_table'][0].astype(np.int32)
         edges = build_edge_topology(parents)
-        print(args)
-        print(edges)
-        with open("output.txt", "w") as f:
-            f.write("Args:\n")
-            f.write(str(args) + "\n")
-            f.write("Edges:\n")
-            f.write(str(edges) + "\n")
         self.encoder = LocalEncoder(args, edges)
         self.decoder = VQDecoderV3(args)
         

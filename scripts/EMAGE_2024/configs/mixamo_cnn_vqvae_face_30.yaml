@@ -1,55 +1,54 @@
 is_train: True
-root_path: /data/nas07/PersonalData/danh/PantoMatrix
-out_path: ./outputs/audio2pose_mixamo/ 
+out_path: ./outputs/audio2pose_face_mixamo/ 
 
-# train_data_path: /beat_4english_30_full/train_copy/ 
-# val_data_path: /beat_4english_30_full/val_copy/ 
-# test_data_path: /beat_4english_30_full/test_copy/ 
-# mean_pose_path: /beat_4english_30_full/train_copy/
-# std_pose_path: /beat_4english_30_full/train_copy/
+# root_path: /data/nas07/PersonalData/danh/EMAGEMixamo
+# train_data_path: /mixamo_english_30_2_1/train_norm/ 
+# val_data_path: /mixamo_english_30_2_1/val_norm/ 
+# test_data_path: /mixamo_english_30_2_1/test_norm/ 
+# mean_pose_path: /mixamo_english_30_2_1/train_norm/
+# std_pose_path: /mixamo_english_30_2_1/train_norm/
 
+root_path: /data/nas07/PersonalData/danh/EMAGEMixamo
 
-train_data_path: /beat_4english_30_mixamo/train_copy/ 
-val_data_path: /beat_4english_30_mixamo/val_copy/ 
-test_data_path: /beat_4english_30_mixamo/test_copy/ 
-mean_pose_path: /beat_4english_30_mixamo/train_copy/
-std_pose_path: /beat_4english_30_mixamo/train_copy/
+train_data_path: /mixamo_english_30_4_811_all/train_norm/ 
+val_data_path: /mixamo_english_30_4_811_all/val_norm/ 
+test_data_path: /mixamo_english_30_4_811_all/test_norm/ 
+mean_pose_path: /mixamo_english_30_4_811_all/train_norm/
+std_pose_path: /mixamo_english_30_4_811_all/train_norm/
 
-stat: wandb
-dataset: beat_skeleton
-new_cache: True
+cache_path: standardize_pose/  # nằm trong folder data
 
-# ori_joints: beat_smplx_joints
-# tar_joints: beat_smplx_upper
-pose_rep: skeleton_cache
-# pose_norm: False
+stat: ts
+dataset: mixamo_skeleton_have_face_final
+new_cache: False
+loader_workers: 4
+batch_size: 64
+new_cache: False
 
 #-- Need to be changed to work with skeleton
 ori_joints: mixamo_joint_full
 tar_joints: mixamo_face
 pose_version: mixamo_face
 pose_fps: 30
-
-
 pose_rep: bvh_rot
 
-##-----Keep unchanged-------##
 ddp: False
 project: emage_skeleton
 
-##-----Keep unchanged-------##
+facial_rep: facial52
+pose_norm: False
+pose_fps: 30
+
+
 vae_test_len: 64
-vae_test_dim: 3
 vae_test_stride: 20
 vae_length: 256
 vae_codebook_size: 256
 vae_layer: 2
 vae_grow: [1,1,2,1]
 variational: False
-##---------------------------##
-
-# pose_dims: 78
-pose_dims: 3 # change to work with skeleton
+vae_test_dim: 51
+facial_dims: 51 # change to work with ARKit(52-tongue=51)
 
 pose_length: 64 #keep unchanged
 stride: 20 #keep unchanged
@@ -58,14 +57,11 @@ stride: 20 #keep unchanged
 facial_dims: 51 # change to work with ARKit(52-tongue=51)
 
 ##-----Keep unchanged-------##
-word_index_num: 11195
-word_dims: 300
-batch_size: 1
 lr_base: 3e-4
 decay_epochs: 9999
 model: motion_representation
 g_name: VQVAEConvZero
-trainer: aeskeleton_hand # change to work with skeleton
+trainer: mixamo_face_final
 ##---------------------------##
 
 # audio_f: 256
@@ -101,8 +97,8 @@ rec_ver_weight: 1
 #iwa_weight: 0
 #fusion_mode: sum
 # grad_norm: 1
-epochs: 10
-test_period: 2
+epochs: 800
+test_period: 10
 
 ## Thêm vào
 multi_length_training: [1] #Vì trong data loader cần biến này#

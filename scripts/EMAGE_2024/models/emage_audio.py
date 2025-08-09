@@ -85,7 +85,7 @@ class MAGE_Transformer(nn.Module):
         args_top = copy.deepcopy(self.args)
         args_top.vae_layer = 3
         args_top.vae_length = args.motion_f
-        args_top.vae_test_dim = args.pose_dims+3+4
+        args_top.vae_test_dim = args.pose_dims+3+2
         self.motion_encoder = VQEncoderV6(args_top) # masked motion to latent bs t 333 to bs t 256
         
         # face decoder 
@@ -127,7 +127,7 @@ class MAGE_Transformer(nn.Module):
         self.hands_classifier = MLP(self.args.vae_codebook_size, args.hidden_size, self.args.vae_codebook_size)
         self.lower_classifier = MLP(self.args.vae_codebook_size, args.hidden_size, self.args.vae_codebook_size)
 
-        self.mask_embeddings = nn.Parameter(torch.zeros(1, 1, self.args.pose_dims)) # self.args.pose_dims+3+4
+        self.mask_embeddings = nn.Parameter(torch.zeros(1, 1, self.args.pose_dims+3+2))
         self.motion_down_upper = nn.Linear(args.hidden_size, self.args.vae_codebook_size)
         self.motion_down_hands = nn.Linear(args.hidden_size, self.args.vae_codebook_size)
         self.motion_down_lower = nn.Linear(args.hidden_size, self.args.vae_codebook_size)
@@ -174,7 +174,6 @@ class MAGE_Transformer(nn.Module):
         fusion_body = in_audio_body
         
         masked_embeddings = self.mask_embeddings.expand_as(in_motion)
-        
         masked_motion = torch.where(mask == 1, masked_embeddings, in_motion) # bs, t, 256 
         body_hint = self.motion_encoder(masked_motion) # bs t 256
         speaker_embedding_face = self.spearker_encoder_face(in_id).squeeze(2)

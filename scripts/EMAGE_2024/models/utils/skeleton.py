@@ -9,9 +9,9 @@ import torch.nn.functional as F
 class SkeletonConv(nn.Module):
     def __init__(self, neighbour_list, in_channels, out_channels, kernel_size, joint_num, stride=1, padding=0,
                  bias=True, padding_mode='zeros', add_offset=False, in_offset_channel=0):
-        in_channels = 156 # 225
-        out_channels = 156 # 225
-        joint_num = 52 # 75
+        in_channels = 225
+        out_channels = 225
+        joint_num = 75
         self.in_channels_per_joint = in_channels // joint_num
         self.out_channels_per_joint = out_channels // joint_num
         if in_channels % joint_num != 0 or out_channels % joint_num != 0:
@@ -43,8 +43,6 @@ class SkeletonConv(nn.Module):
                     expanded.append(k * self.in_channels_per_joint + i)
             self.expanded_neighbour_list.append(expanded)
 
-        print(f"neighbour_list: {neighbour_list}, {len(neighbour_list)}")
-
         if self.add_offset:
             self.offset_enc = SkeletonLinear(neighbour_list, in_offset_channel * len(neighbour_list), out_channels)
 
@@ -56,7 +54,7 @@ class SkeletonConv(nn.Module):
                 self.expanded_neighbour_list_offset.append(expanded)
 
         # self.weight = torch.zeros(out_channels, in_channels, kernel_size)
-        self.weight = torch.zeros(156, 156, kernel_size) # torch.zeros(225, 225, kernel_size)
+        self.weight = torch.zeros(225, 225, kernel_size)
         print(f"self.weight: {self.weight}, {self.weight.shape}")
         print(f"out_channels, in_channels, kernel_size: {out_channels}, {in_channels}, {kernel_size}")
         if bias:
@@ -66,10 +64,7 @@ class SkeletonConv(nn.Module):
 
         self.mask = torch.zeros_like(self.weight)
         print(f"self.mask: {self.mask}, {self.mask.shape}")
-        print(f"self.expanded_neighbour_list: {self.expanded_neighbour_list}")
-        
         for i, neighbour in enumerate(self.expanded_neighbour_list):
-            print(f"skeleton.py: {self.out_channels_per_joint}, {self.mask}, {self.mask.shape}, {neighbour}")
             self.mask[self.out_channels_per_joint * i: self.out_channels_per_joint * (i + 1), neighbour, ...] = 1
         self.mask = nn.Parameter(self.mask, requires_grad=False)
 
@@ -131,9 +126,9 @@ class SkeletonConv(nn.Module):
 class SkeletonLinear(nn.Module):
     def __init__(self, neighbour_list, in_channels, out_channels, extra_dim1=False):
         super(SkeletonLinear, self).__init__()
-        in_channels = 156 # 225
-        out_channels = 156 # 225
-        joint_num = 52
+        in_channels = 225
+        out_channels = 225
+        joint_num = 75
         self.neighbour_list = neighbour_list
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -572,9 +567,9 @@ class ResidualBlockTranspose(nn.Module):
 class SkeletonResidual(nn.Module):
     def __init__(self, topology, neighbour_list, joint_num, in_channels, out_channels, kernel_size, stride, padding, padding_mode, bias, extra_conv, pooling_mode, activation, last_pool):
         super(SkeletonResidual, self).__init__()
-        in_channels = 156 # 225
-        out_channels = 156 # 225
-        joint_num = 52
+        in_channels = 225
+        out_channels = 225
+        joint_num = 75
 
         kernel_even = False if kernel_size % 2 else True
 
@@ -590,7 +585,7 @@ class SkeletonResidual(nn.Module):
         seq.append(SkeletonConv(neighbour_list, in_channels=in_channels, out_channels=out_channels,
                                 joint_num=joint_num, kernel_size=kernel_size, stride=stride,
                                 padding=padding, padding_mode=padding_mode, bias=bias, add_offset=False))
-        seq.append(nn.GroupNorm(15, 156)) # 225  # out_channels  # FIXME: REMEMBER TO CHANGE BACK !!!
+        seq.append(nn.GroupNorm(15, 225)) # out_channels  # FIXME: REMEMBER TO CHANGE BACK !!!
         # print(f"LINE 579 OUT_CHANELS: {out_channels}")
         self.residual = nn.Sequential(*seq)
 
@@ -635,9 +630,9 @@ class SkeletonResidual(nn.Module):
 class SkeletonResidualTranspose(nn.Module):
     def __init__(self, neighbour_list, joint_num, in_channels, out_channels, kernel_size, padding, padding_mode, bias, extra_conv, pooling_list, upsampling, activation, last_layer):
         super(SkeletonResidualTranspose, self).__init__()
-        in_channels = 156 # 225
-        out_channels = 156 # 225
-        joint_num = 52 # 75
+        in_channels = 225
+        out_channels = 225
+        joint_num = 75
 
         kernel_even = False if kernel_size % 2 else True
 

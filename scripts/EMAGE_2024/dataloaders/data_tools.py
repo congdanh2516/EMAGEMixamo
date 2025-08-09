@@ -11,178 +11,6 @@ from .pymo.parsers import BVHParser
 from .pymo.viz_tools import *
 from .pymo.preprocessing import *
 
-
-beat_joints = {
-    'upper': {
-        'Hips':         [6,6],
-        'Spine':        [3,9],
-        'Spine1':       [3,12],
-        'Spine2':       [3,15],
-        'Spine3':       [3,18],
-        'Neck':         [3,21],
-        'Neck1':        [3,24],
-        'RShoulder':    [3,33], 
-        'RArm':         [3,36],
-        'RArm1':        [3,39],
-        'LShoulder':    [3,114], 
-        'LArm':         [3,117],
-        'LArm1':        [3,120],
-    },
-    'hand': {
-        'RHand':        [3,42],    
-        'RHandM1':      [3,45],
-        'RHandM2':      [3,48],
-        'RHandM3':      [3,51],
-        'RHandM4':      [3,54],
-        'RHandR':       [3,57],
-        'RHandR1':      [3,60],
-        'RHandR2':      [3,63],
-        'RHandR3':      [3,66],
-        'RHandR4':      [3,69],
-        'RHandP':       [3,72],
-        'RHandP1':      [3,75],
-        'RHandP2':      [3,78],
-        'RHandP3':      [3,81],
-        'RHandP4':      [3,84],
-        'RHandI':       [3,87],
-        'RHandI1':      [3,90],
-        'RHandI2':      [3,93],
-        'RHandI3':      [3,96],
-        'RHandI4':      [3,99],
-        'RHandT1':      [3,102],
-        'RHandT2':      [3,105],
-        'RHandT3':      [3,108],
-        'RHandT4':      [3,111],
-        'LHand':        [3,123],    
-        'LHandM1':      [3,126],
-        'LHandM2':      [3,129],
-        'LHandM3':      [3,132],
-        'LHandM4':      [3,135],
-        'LHandR':       [3,138],
-        'LHandR1':      [3,141],
-        'LHandR2':      [3,144],
-        'LHandR3':      [3,147],
-        'LHandR4':      [3,150],
-        'LHandP':       [3,153],
-        'LHandP1':      [3,156],
-        'LHandP2':      [3,159],
-        'LHandP3':      [3,162],
-        'LHandP4':      [3,165],
-        'LHandI':       [3,168],
-        'LHandI1':      [3,171],
-        'LHandI2':      [3,174],
-        'LHandI3':      [3,177],
-        'LHandI4':      [3,180],
-        'LHandT1':      [3,183],
-        'LHandT2':      [3,186],
-        'LHandT3':      [3,189],
-        'LHandT4':      [3,192],
-    },
-    'lower': {
-        'RUpLeg':       [3,195],
-        'RLeg':         [3,198],
-        'RFoot':        [3,201],
-        'RFootF':       [3,204],
-        'RToeBase':     [3,207],
-        'RToeBaseEnd':  [3,210],
-        'LUpLeg':       [3,213],
-        'LLeg':         [3,216],
-        'LFoot':        [3,219],
-        'LFootF':       [3,222],
-        'LToeBase':     [3,225],
-        'LToeBaseEnd':  [3,228],
-    },
-    'face': {
-        'Head':         [3,27],
-        'HeadEnd':      [3,30],
-    }
-}
-
-beat_full = {
-    'upper': {
-        'Hips':         6,
-        'Spine':        3,
-        'Spine1':       3,
-        'Spine2':       3,
-        'Spine3':       3,
-        'Neck':         3,
-        'Neck1':        3,
-        'RShoulder':    3, 
-        'RArm':         3,
-        'RArm1':        3,
-        'LShoulder':    3, 
-        'LArm':         3,
-        'LArm1':        3,
-    },
-    'hand': {
-        'RHand':        3,    
-        'RHandM1':      3,
-        'RHandM2':      3,
-        'RHandM3':      3,
-        'RHandM4':      3,
-        'RHandR':       3,
-        'RHandR1':      3,
-        'RHandR2':      3,
-        'RHandR3':      3,
-        'RHandR4':      3,
-        'RHandP':       3,
-        'RHandP1':      3,
-        'RHandP2':      3,
-        'RHandP3':      3,
-        'RHandP4':      3,
-        'RHandI':       3,
-        'RHandI1':      3,
-        'RHandI2':      3,
-        'RHandI3':      3,
-        'RHandI4':      3,
-        'RHandT1':      3,
-        'RHandT2':      3,
-        'RHandT3':      3,
-        'RHandT4':      3,
-        'LHand':        3,    
-        'LHandM1':      3,
-        'LHandM2':      3,
-        'LHandM3':      3,
-        'LHandM4':      3,
-        'LHandR':       3,
-        'LHandR1':      3,
-        'LHandR2':      3,
-        'LHandR3':      3,
-        'LHandR4':      3,
-        'LHandP':       3,
-        'LHandP1':      3,
-        'LHandP2':      3,
-        'LHandP3':      3,
-        'LHandP4':      3,
-        'LHandI':       3,
-        'LHandI1':      3,
-        'LHandI2':      3,
-        'LHandI3':      3,
-        'LHandI4':      3,
-        'LHandT1':      3,
-        'LHandT2':      3,
-        'LHandT3':      3,
-        'LHandT4':      3,
-    },
-    'lower': {
-        'RUpLeg':       3,
-        'RLeg':         3,
-        'RFoot':        3,
-        'RFootF':       3,
-        'RToeBase':     3,
-        'RToeBaseEnd':  3,
-        'LUpLeg':       3,
-        'LLeg':         3,
-        'LFoot':        3,
-        'LFootF':       3,
-        'LToeBase':     3,
-        'LToeBaseEnd':  3,
-    },
-    'face': {
-        'Head':         3,
-        'HeadEnd':      3,
-    }
-}
 # pose version fpsxx_trinity/japanese_joints(_xxx)
 joints_list = {
 
@@ -284,13 +112,15 @@ joints_list = {
         'Spine3':       [3,18],
         'Neck':         [3,21],
         'Neck1':        [3,24],
+        'Head':         [3,27],
+        'HeadEnd':      [3,30],
         'RShoulder':    [3,33], 
         'RArm':         [3,36],
         'RArm1':        [3,39],
         'LShoulder':    [3,114], 
         'LArm':         [3,117],
         'LArm1':        [3,120],
-    },
+    }, # upper has 14 joint
     
     'skeleton_joint_hand': {
         'RHand':        [3,42],    
@@ -341,27 +171,26 @@ joints_list = {
         'LHandT2':      [3,186],
         'LHandT3':      [3,189],
         'LHandT4':      [3,192],
-    },
+    }, # hand has 48 joints
 
     'skeleton_joint_lower': {
-        'Hips':         [6,6],
-        'RUpLeg':       [3,195],
-        'RLeg':         [3,198],
-        'RFoot':        [3,201],
-        'RFootF':       [3,204],
-        'RToeBase':     [3,207],
-        'RToeBaseEnd':  [3,210],
-        'LUpLeg':       [3,213],
-        'LLeg':         [3,216],
-        'LFoot':        [3,219],
-        'LFootF':       [3,222],
-        'LToeBase':     [3,225],
-        'LToeBaseEnd':  [3,228],
-    },
+        'Hips':         [6,6],    # 0
+        'RUpLeg':       [3,195],  # 1
+        'RLeg':         [3,198],  # 2
+        'RFoot':        [3,201],  # 3
+        'RFootF':       [3,204],  # 4
+        'RToeBase':     [3,207],  # 5
+        'RToeBaseEnd':  [3,210],  # 6
+        'LUpLeg':       [3,213],  # 7
+        'LLeg':         [3,216],  # 8
+        'LFoot':        [3,219],  # 9
+        'LFootF':       [3,222],  # 10
+        'LToeBase':     [3,225],  # 11
+        'LToeBaseEnd':  [3,228],  # 12
+    }, #lower has 13 joints, contain Hips
 
     'skeleton_joint_face': {
-        'Head':         [3,27],
-        'HeadEnd':      [3,30],
+        'Head':         [3,27], # For the dataloader can work. Do not use
     },
 
     'skeleton_upper': {
@@ -371,13 +200,15 @@ joints_list = {
         'Spine3':       3,
         'Neck':         3,
         'Neck1':        3,
+        'Head':         3,
+        'HeadEnd':      3,
         'RShoulder':    3, 
         'RArm':         3,
         'RArm1':        3,
         'LShoulder':    3, 
         'LArm':         3,
         'LArm1':        3,
-    },
+    }, 
     
     'skeleton_hand': {
         'RHand':        3,    
@@ -431,7 +262,7 @@ joints_list = {
     },
 
     'skeleton_lower': {
-        'Hips':         3,
+        'Hips':         6,
         'RUpLeg':       3,
         'RLeg':         3,
         'RFoot':        3,
@@ -448,7 +279,6 @@ joints_list = {
 
     'skeleton_face': {
         'Head':         3,
-        'HeadEnd':      3,
     },
 
     "trinity_joints":{
@@ -1833,8 +1663,7 @@ joints_list = {
 
 
     # mixamo bones joints definition
-    'mixamo_joint_full': {
-        
+    'mixamo_joint_full': { 
         'Hips': [6, 6],
         'Spine': [3, 9],
         'Spine1': [3, 12],
@@ -1846,26 +1675,20 @@ joints_list = {
         'LHandI1': [3, 30],
         'LHandI2': [3, 33],
         'LHandI3': [3, 36],
-
         'LHandM1': [3, 39],
         'LHandM2': [3, 42],
         'LHandM3': [3, 45],
-
         'LHandP1': [3, 48],
         'LHandP2': [3, 51],
         'LHandP3': [3, 54],
-
         'LHandR1': [3, 57],
         'LHandR2': [3, 60],
         'LHandR3': [3, 63],
-
         'LHandT1': [3, 66],
         'LHandT2': [3, 69],
         'LHandT3': [3, 72],
-
         'Neck': [3, 75],
         'Head': [3, 78],
-
         'RShoulder': [3, 81],
         'RArm': [3, 84],
         'RArm1': [3, 87],
@@ -1873,28 +1696,22 @@ joints_list = {
         'RHandI1': [3, 93],
         'RHandI2': [3, 96],
         'RHandI3': [3, 99],
-
         'RHandM1': [3, 102],
         'RHandM2': [3, 105],
         'RHandM3': [3, 108],
-
         'RHandP1': [3, 111],
         'RHandP2': [3, 114],
         'RHandP3': [3, 117],
-
         'RHandR1': [3, 120],
         'RHandR2': [3, 123],
         'RHandR3': [3, 126],
-
         'RHandT1': [3, 129],
         'RHandT2': [3, 132],
         'RHandT3': [3, 135],
-
         'LUpLeg': [3, 138],
         'LLeg': [3, 141],
         'LFoot': [3, 144],
         'LToeBase': [3, 147],
-
         'RUpLeg': [3, 150],
         'RLeg': [3, 153],
         'RFoot': [3, 156],
@@ -1902,7 +1719,7 @@ joints_list = {
     },
 
     "mixamo_full" : {
-        'Hips': 3,
+        'Hips': 6,
         'Spine': 3,
         'Spine1': 3,
         'Spine2': 3,
@@ -1913,26 +1730,20 @@ joints_list = {
         'LHandI1': 3,
         'LHandI2': 3,
         'LHandI3': 3,
-    
         'LHandM1': 3,
         'LHandM2': 3,
         'LHandM3': 3,
-    
         'LHandP1': 3,
         'LHandP2': 3,
         'LHandP3': 3,
-    
         'LHandR1': 3,
         'LHandR2': 3,
         'LHandR3': 3,
-    
         'LHandT1': 3,
         'LHandT2': 3,
         'LHandT3': 3,
-    
         'Neck': 3,
         'Head': 3,
-    
         'RShoulder': 3,
         'RArm': 3,
         'RArm1': 3,
@@ -1940,110 +1751,103 @@ joints_list = {
         'RHandI1': 3,
         'RHandI2': 3,
         'RHandI3': 3,
-    
         'RHandM1': 3,
         'RHandM2': 3,
         'RHandM3': 3,
-    
         'RHandP1': 3,
         'RHandP2': 3,
         'RHandP3': 3,
-    
         'RHandR1': 3,
         'RHandR2': 3,
         'RHandR3': 3,
-    
         'RHandT1': 3,
         'RHandT2': 3,
         'RHandT3': 3,
-    
         'LUpLeg': 3,
         'LLeg': 3,
         'LFoot': 3,
         'LToeBase': 3,
-    
         'RUpLeg': 3,
         'RLeg': 3,
         'RFoot': 3,
         'RToeBase': 3
-    },
+    }, # FUll have 52 joints
 
-    'mixamo_joint_upper': {
-        'Hips': [6, 6],
-        'Spine': [3, 9],
-        'Spine1': [3, 12],
-        'Spine2': [3, 15],
-        'LShoulder': [3, 18],
-        'LArm': [3, 21],
-        'LArm1': [3, 24],
-        'Neck': [3, 75],
-        'RShoulder': [3, 81],
-        'RArm': [3, 84],
-        'RArm1': [3, 87],
-    },
+    # 'mixamo_joint_upper': {
+    #     'Spine': [3, 9],
+    #     'Spine1': [3, 12],
+    #     'Spine2': [3, 15],
+    #     'LShoulder': [3, 18],
+    #     'LArm': [3, 21],
+    #     'LArm1': [3, 24],
+    #     'Neck': [3, 75],
+    #     'RShoulder': [3, 81],
+    #     'RArm': [3, 84],
+    #     'RArm1': [3, 87],
+    # }, # Upper has 10 joints
 
-    'mixamo_joint_hand': {
-        'LHand': [3, 27],
-        'LHandI1': [3, 30],
-        'LHandI2': [3, 33],
-        'LHandI3': [3, 36],
+    # 'mixamo_joint_hand': {
+    #     'LHand': [3, 27],
+    #     'LHandI1': [3, 30],
+    #     'LHandI2': [3, 33],
+    #     'LHandI3': [3, 36],
 
-        'LHandM1': [3, 39],
-        'LHandM2': [3, 42],
-        'LHandM3': [3, 45],
+    #     'LHandM1': [3, 39],
+    #     'LHandM2': [3, 42],
+    #     'LHandM3': [3, 45],
 
-        'LHandP1': [3, 48],
-        'LHandP2': [3, 51],
-        'LHandP3': [3, 54],
+    #     'LHandP1': [3, 48],
+    #     'LHandP2': [3, 51],
+    #     'LHandP3': [3, 54],
 
-        'LHandR1': [3, 57],
-        'LHandR2': [3, 60],
-        'LHandR3': [3, 63],
+    #     'LHandR1': [3, 57],
+    #     'LHandR2': [3, 60],
+    #     'LHandR3': [3, 63],
 
-        'LHandT1': [3, 66],
-        'LHandT2': [3, 69],
-        'LHandT3': [3, 72],
+    #     'LHandT1': [3, 66],
+    #     'LHandT2': [3, 69],
+    #     'LHandT3': [3, 72],
         
-        'RHand': [3, 90],
-        'RHandI1': [3, 93],
-        'RHandI2': [3, 96],
-        'RHandI3': [3, 99],
+    #     'RHand': [3, 90],
+    #     'RHandI1': [3, 93],
+    #     'RHandI2': [3, 96],
+    #     'RHandI3': [3, 99],
 
-        'RHandM1': [3, 102],
-        'RHandM2': [3, 105],
-        'RHandM3': [3, 108],
+    #     'RHandM1': [3, 102],
+    #     'RHandM2': [3, 105],
+    #     'RHandM3': [3, 108],
 
-        'RHandP1': [3, 111],
-        'RHandP2': [3, 114],
-        'RHandP3': [3, 117],
+    #     'RHandP1': [3, 111],
+    #     'RHandP2': [3, 114],
+    #     'RHandP3': [3, 117],
 
-        'RHandR1': [3, 120],
-        'RHandR2': [3, 123],
-        'RHandR3': [3, 126],
+    #     'RHandR1': [3, 120],
+    #     'RHandR2': [3, 123],
+    #     'RHandR3': [3, 126],
 
-        'RHandT1': [3, 129],
-        'RHandT2': [3, 132],
-        'RHandT3': [3, 135],
-    },
+    #     'RHandT1': [3, 129],
+    #     'RHandT2': [3, 132],
+    #     'RHandT3': [3, 135],
+    # },
 
-    'mixamo_joint_lower': {
-        'LUpLeg': [3, 138],
-        'LLeg': [3, 141],
-        'LFoot': [3, 144],
-        'LToeBase': [3, 147],
+    # 'mixamo_joint_lower': {
+    #     'Hips': [6, 6],
+    #     'LUpLeg': [3, 138],
+    #     'LLeg': [3, 141],
+    #     'LFoot': [3, 144],
+    #     'LToeBase': [3, 147],
 
-        'RUpLeg': [3, 150],
-        'RLeg': [3, 153],
-        'RFoot': [3, 156],
-        'RToeBase': [3, 159]
-    },
+    #     'RUpLeg': [3, 150],
+    #     'RLeg': [3, 153],
+    #     'RFoot': [3, 156],
+    #     'RToeBase': [3, 159]
+    # },
 
-    'mixamo_joint_face': {
-        'Head': [3, 78],
-    },
+    # 'mixamo_joint_face': {
+    #     'Head': [3, 78],
+    # },
 
     'mixamo_upper': {
-        'Hips': 3,
         'Spine': 3,
         'Spine1': 3,
         'Spine2': 3,
@@ -2051,10 +1855,12 @@ joints_list = {
         'LArm': 3,
         'LArm1': 3,
         'Neck': 3,
+        'Head': 3,
         'RShoulder': 3,
         'RArm': 3,
         'RArm1': 3,
-    }, 
+    }, # Upper has 11 joints
+
 
     'mixamo_hand': {
         'LHand': 3,
@@ -2098,24 +1904,23 @@ joints_list = {
         'RHandT1': 3,
         'RHandT2': 3,
         'RHandT3': 3,
-    },
+    }, # Hands has 32 joints
 
     'mixamo_lower': {
+        'Hips': 6,
         'LUpLeg': 3,
         'LLeg': 3,
         'LFoot': 3,
         'LToeBase': 3,
-    
         'RUpLeg': 3,
         'RLeg': 3,
         'RFoot': 3,
         'RToeBase': 3
-    },
+    }, # Lower has 9 joints
 
     'mixamo_face': {
         'Head': 3,
     }
-    
 }
 
 
@@ -2311,7 +2116,7 @@ class FIDCalculator(object):
         else: return 0
              
 
-def result2target_vis(pose_version, res_bvhlist, save_path, demo_name, verbose=True):
+def result2target_vis(pose_version, res_bvhlist, save_path, demo_name, mode, verbose=True):
     # print(f"pose version: {pose_version}")
     if "trinity" in pose_version:
         ori_list = joints_list[pose_version[6:-4]] 
@@ -2323,27 +2128,27 @@ def result2target_vis(pose_version, res_bvhlist, save_path, demo_name, verbose=T
         file_content_length = 431
 
     elif "skeleton_hand" in pose_version:
-        ori_list = joints_list["beat_joints"]
+        ori_list = joints_list["skeleton_joint_full"]
         target_list = joints_list["skeleton_hand"]
         file_content_length = 431
         
     elif "skeleton_lower" in pose_version:
-        ori_list = joints_list["beat_joints"]
+        ori_list = joints_list["skeleton_joint_full"]
         target_list = joints_list["skeleton_lower"]
         file_content_length = 431
 
     elif "skeleton_upper" in pose_version:
-        ori_list = joints_list["beat_joints"]
+        ori_list = joints_list["skeleton_joint_full"]
         target_list = joints_list["skeleton_upper"]
         file_content_length = 431
 
     elif "skeleton_face" in pose_version:
-        ori_list = joints_list["beat_joints"]
+        ori_list = joints_list["skeleton_joint_full"]
         target_list = joints_list["skeleton_face"]
         file_content_length = 431
 
     elif "skeleton_joint_full" in pose_version:
-        ori_list = joints_list["beat_joints"]
+        ori_list = joints_list["skeleton_joint_full"]
         target_list = joints_list["beat_full"]
         file_content_length = 431
 
@@ -2389,22 +2194,30 @@ def result2target_vis(pose_version, res_bvhlist, save_path, demo_name, verbose=T
     if not os.path.exists(save_path):
         os.makedirs(save_path)
     for i, bvh_file_dir in enumerate(bvh_files_dirs):
+        # print(i, "xyz\n\n\n\n")
         short_name = bvh_file_dir.split("/")[-1][11:]
         #print(short_name)
         wirte_file =  open(os.path.join(save_path, f'res_{short_name}'),'w+')
-        with open(f"{demo_name}{short_name}",'r') as pose_data_pre:
-            pose_data_pre_file = pose_data_pre.readlines()
-            
-            for j, line in enumerate(pose_data_pre_file[0:file_content_length]):
-                # if "CHANNELS" in line and "Xrotation" in line:
-                #     # Thay the Yrotation Xrotation Zrotation → Xrotation Yrotation Zrotation
-                #     line = line.replace("Yrotation Xrotation Zrotation", "Xrotation Yrotation Zrotation")
-                wirte_file.write(line)
+        # print(f"demo_name: {demo_name}")
+        # print(f"short_name: {short_name}")
+        if demo_name == "inference":
+            with open("/data/nas07/PersonalData/danh/EMAGEMixamo/bvh_example/1_fufu_0_1_1.bvh",'r') as pose_data_pre:
+                pose_data_pre_file = pose_data_pre.readlines()
                 
-            offset_data = pose_data_pre_file[file_content_length]
-            # print(f"1_offset_data: {offset_data}, len: {len(offset_data)}")
-            offset_data = np.fromstring(offset_data, dtype=float, sep=' ')
-            # print(f"2_offset_data: {offset_data}, {len(offset_data)}")
+                for j, line in enumerate(pose_data_pre_file[0:file_content_length]):
+                    wirte_file.write(line)
+                    
+                offset_data = pose_data_pre_file[file_content_length]
+                offset_data = np.fromstring(offset_data, dtype=float, sep=' ')
+        else:
+             with open(f"{demo_name}{short_name}",'r') as pose_data_pre:
+                pose_data_pre_file = pose_data_pre.readlines()
+                
+                for j, line in enumerate(pose_data_pre_file[0:file_content_length]):
+                    wirte_file.write(line)
+                    
+                offset_data = pose_data_pre_file[file_content_length]
+                offset_data = np.fromstring(offset_data, dtype=float, sep=' ')
         wirte_file.close()
 
         wirte_file = open(os.path.join(save_path, f'res_{short_name}'),'r')
@@ -2428,28 +2241,27 @@ def result2target_vis(pose_version, res_bvhlist, save_path, demo_name, verbose=T
                     if not j:
                         pass
                     else:          
-                        data = np.fromstring(line, dtype=float, sep=' ') # ket qua du doan cua mo hinh, mang = num_joint * 3
-                        # print(f"data: {data}, len: {len(data)}")
+                        data = np.fromstring(line, dtype=float, sep=' ') 
+                        # print("data:", data)
                         data_rotation = offset_data.copy() 
-                        # print(f"data_rotation: {data_rotation}, {len(data_rotation)}")
-                        # print(f"target_list.items(): {target_list.items()}")
-                        # print(f"len(data): {len(data)}")
-                        
-                        for iii, (k, v) in enumerate(target_list.items()): # here is 147 rotations by 3 # target_list la cac joint cua (sub-)module, chi chua ten joint va so luong join
-                            # print(f"iii, k, v: {iii}, {k}, {v}") # no, name, num_joint (trong mang 1 phan tu)
-                            if iii*3+3 < len(data): # len(data) la so luong gia tri = num_joint * 3, data là output cua mo hinh train, trong file ket qua xuat ra á
-                                # print(f"{ori_list[k][1]}, {v}, {v[0]}")
-                                # print(f"data_rotation[{ori_list[k][1]} - {v[0]} : {ori_list[k][1]}]")
+                        # print("data_rotation shape:", data_rotation.shape)
+                        if mode == "all_or_lower":
+                            # print("all_or_lower mode")
+                            for iii, (k, v) in enumerate(target_list.items()): # here is 147 rotations by 3 # target_list 
+                                # print (iii, k,v)
+                                if k == "Hips":  # Or the exact name/key used for root joint
+                                        # Copy 6 values: 3 translation + 3 rotation
+                                    # print("Write for Hips:", data[0:iii*3+6])
+                                    data_rotation[ori_list[k][1] - v : ori_list[k][1]] = data[0:iii*3+6]
+                                else:    
+                                    data_rotation[ori_list[k][1] - v : ori_list[k][1]] = data[iii*3+3:iii*3+3+3]
+                        elif mode == "upper_only":  
+                            # print("upper_only mode")
+                            for iii, (k, v) in enumerate(target_list.items()):
+                                # print (iii, k,v)
                                 data_rotation[ori_list[k][1] - v : ori_list[k][1]] = data[iii*3:iii*3+3]
-                                
-                                # example: k=Hips, 1 là phần tử thứ 2 trong mảng [6, 6], v la gia tri duy nhat trong target_list, chỉ chi joint_name va so joint của joint do, data_rotation[6-3 : 6] = data[0 : 3]
-                                
-                                # y_rot = data[iii*3]      # Lấy Y (ban đầu là thứ tự đầu tiên)
-                                # x_rot = data[iii*3+1]    # Lấy X (ban đầu là thứ tự thứ hai)
-                                # z_rot = data[iii*3+2]    # Lấy Z (ban đầu là thứ tự thứ ba)
-                                # # Gán lại theo thứ tự X, Y, Z
-                                # data_rotation[ori_list[k][1] - v : ori_list[k][1]] = [x_rot, y_rot, z_rot]
-
+                                # print(data[iii*3:iii*3+3])
+                            
                         data_each_file.append(data_rotation)
         
             for line_data in data_each_file:
@@ -2458,4 +2270,7 @@ def result2target_vis(pose_version, res_bvhlist, save_path, demo_name, verbose=T
 
         counter += 1
         if verbose:
-            logger.info('data_shape:', data_rotation.shape, 'process:', counter, '/', len(bvh_files_dirs))
+            # logger.info('data_shape:', data_rotation.shape, 'process:', counter, '/', len(bvh_files_dirs))
+            logger.info('data_shape: %s, process: %d / %d', data_rotation.shape, counter, len(bvh_files_dirs))
+
+            

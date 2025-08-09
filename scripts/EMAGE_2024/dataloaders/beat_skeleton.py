@@ -34,6 +34,7 @@ class CustomDataset(Dataset):
         self.stride = args.stride #10
         self.pose_fps = args.pose_fps #15
         self.pose_dims = args.pose_dims # 141
+        self.facial_dims = args.facial_dims
 
         self.args = args
 
@@ -70,10 +71,13 @@ class CustomDataset(Dataset):
         self.joints = len(list(self.ori_joint_list.keys())) + 1
         self.joint_mask = np.zeros(self.joints*3)
         for joint_name in self.tar_joint_list:
-            if joint_name == "Hips":
-                self.joint_mask[3:6] = 1
-            else:
-                self.joint_mask[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
+            
+            # if joint_name == "Hips":
+            #     self.joint_mask[3:6] = 1
+            # else:
+            #     self.joint_mask[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
+
+            self.joint_mask[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
     #----------------Copy from beat_sep_lower.py-----------##
         
         if loader_type == "train":
@@ -95,7 +99,7 @@ class CustomDataset(Dataset):
 
         # training multiple sub-modules in parallel at the same time
         
-        preloaded_dir = ""
+        # preloaded_dir = ""
 
         # if "mixamo_hand" in args.tar_joints:
         #     preloaded_dir = self.data_dir + f"{self.pose_rep}_hand_cache"
@@ -109,20 +113,20 @@ class CustomDataset(Dataset):
         #      preloaded_dir = self.data_dir + f"{self.pose_rep}_full_cache"
 
         if "skeleton_hand" in args.tar_joints:
-            preloaded_dir = self.data_dir + f"{self.pose_rep}_hand_cache"
+            preloaded_dir = self.data_dir + self.args.cache_path + f"{self.pose_rep}_hand_cache"
         elif "skeleton_face" in args.tar_joints:
-            preloaded_dir = self.data_dir + f"{self.pose_rep}_face_cache"
+            preloaded_dir = self.data_dir + self.args.cache_path + f"{self.pose_rep}_face_cache"
         elif "skeleton_lower" in args.tar_joints:
-            preloaded_dir = self.data_dir + f"{self.pose_rep}_lower_cache"
+            preloaded_dir = self.data_dir + self.args.cache_path + f"{self.pose_rep}_lower_cache"
         elif "skeleton_upper" in args.tar_joints:
-             preloaded_dir = self.data_dir + f"{self.pose_rep}_upper_cache"
+             preloaded_dir = self.data_dir + self.args.cache_path + f"{self.pose_rep}_upper_cache"
         elif "skeleton_joint_full" in args.tar_joints: # using beat_skeleton_new
-             preloaded_dir = self.data_dir + f"{self.pose_rep}_full_cache"
+             preloaded_dir = self.data_dir + self.args.cache_path + f"{self.pose_rep}_full_cache"
             
         ##----------------------cả beat_sep_lower.py và beat_sep.py đều không dùng đoạn này-------------##
         ##beat.py 2022 thì có dùng
-        self.mean_pose = np.load(args.root_path+args.mean_pose_path+f"{args.pose_rep}/bvh_mean.npy")
-        self.std_pose = np.load(args.root_path+args.mean_pose_path+f"{args.pose_rep}/bvh_std.npy")
+        # self.mean_pose = np.load(args.root_path+args.mean_pose_path+f"{args.pose_rep}/bvh_mean.npy")
+        # self.std_pose = np.load(args.root_path+args.mean_pose_path+f"{args.pose_rep}/bvh_std.npy")
         self.audio_norm = args.audio_norm
         self.facial_norm = args.facial_norm
         if self.audio_norm:
@@ -151,6 +155,9 @@ class CustomDataset(Dataset):
         
         # pose_length_extended = int(round(self.pose_length))
         logger.info("Creating the dataset cache...")
+        if not os.path.exists(preloaded_dir):
+            os.makedirs(preloaded_dir, exist_ok=True)
+            
         if self.new_cache:
             if os.path.exists(preloaded_dir):
                 shutil.rmtree(preloaded_dir)
@@ -497,7 +504,12 @@ class CustomDataset(Dataset):
                 start_idx = clip_s_f_pose + i * self.stride
                 fin_idx = start_idx + self.pose_length # 34
                 sample_pose = pose_each_file[start_idx:fin_idx]
+                
+                # print("Before filtering motion skeleton data")
+                # print("min value of sample_pose:", sample_pose.min().item())
+                # print("max value of sample_pose:", sample_pose.max().item())
 
+                
                 # torch.set_printoptions(threshold=float('inf'))
                 
                 # print(f"sample_pose.shape: {sample_pose[0]}, {sample_pose.shape}") # không có nan, lower 228 (64, 36)
@@ -519,8 +531,13 @@ class CustomDataset(Dataset):
                 sample_vid = np.array(vid_each_file) if vid_each_file != [] else np.array([-1])
                 
                 if sample_pose.any() != None:
-                    # filtering motion skeleton data
-                    sample_pose, filtering_message = MotionPreprocessor(sample_pose, self.mean_pose, self.joint_mask).get()
+                    
+                    #----------filtering motion skeleton data--------
+                    
+                    # sample_pose, filtering_message = MotionPreprocessor(sample_pose, self.mean_pose, self.joint_mask).get()
+                    # print("After filtering motion skeleton data")
+                    # print("min value of sample_pose:", sample_pose.min().item())
+                    # print("max value of sample_pose:", sample_pose.max().item())
 
                     # print(f"sample_pose.shape: {sample_pose[0]}, {sample_pose.shape}") # không có nan, lơer 228 (64, 36)
                     
@@ -550,6 +567,10 @@ class CustomDataset(Dataset):
                                                         ):
                         # normalized_pose = self.normalize_pose(pose, self.mean_pose, self.std_pose, self.joint_mask)
                         k = "{:005}".format(self.n_out_samples).encode("ascii")
+                        # print("output pose:")
+
+                        # print("min:", pose.min().item())
+                        # print("max:", pose.max().item())
                         v = [pose, audio, facial, word, emo, sem, vid]
                         v = pyarrow.serialize(v).to_buffer()
                         txn.put(k, v)

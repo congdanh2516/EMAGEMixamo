@@ -107,11 +107,14 @@ class CustomTrainer(train.BaseTrainer):
         #     self.joint_mask_upper[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
 
         self.joint_mask_upper = np.zeros((len(list(self.ori_joint_list.keys())))*3)
+        # for joint_name in self.tar_joint_list_upper:
+        #     if joint_name == "Hips":
+        #         self.joint_mask_upper[3:6] = 1
+        #     else:
+        #         self.joint_mask_upper[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
+
         for joint_name in self.tar_joint_list_upper:
-            if joint_name == "Hips":
-                self.joint_mask_upper[3:6] = 1
-            else:
-                self.joint_mask_upper[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
+            self.joint_mask_upper[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
       
         # for joint_name in self.tar_joint_list_upper:
         #     if joint_name == "Hips":

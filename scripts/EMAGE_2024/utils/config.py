@@ -32,6 +32,7 @@ def parse_args():
     parser.add("--csv_name", default="a2g_0", type=str) # local device id
     parser.add("--notes", default="", type=str) 
     parser.add("--trainer", default="camn", type=str) 
+    parser.add_argument('--resume_path', type=str, default=None, help='Path to resume checkpoint')
 
     parser.add("--l", default=4, type=int)
     # ------------- path and save name ---------------- #

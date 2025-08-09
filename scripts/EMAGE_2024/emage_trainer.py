@@ -155,7 +155,7 @@ class CustomTrainer(train.BaseTrainer):
         latent_all = torch.cat([tar_pose_6d, tar_trans, tar_contact], dim=-1)
         
         return {
-            "tar_pose_jaw": tar_pose_jaw,
+            # "tar_pose_jaw": tar_pose_jaw,
             "tar_pose_face": tar_pose_face,
             "tar_pose_upper": tar_pose_upper,
             "tar_pose_lower": tar_pose_lower,

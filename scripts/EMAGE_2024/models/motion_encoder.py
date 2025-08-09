@@ -102,11 +102,9 @@ class VQEncoderV6(nn.Module):
             channels.append(args.vae_length)
         
         input_size = args.vae_test_dim
-        # print(f"MOTION_ENCODER_args.vae_test_dim: {args.vae_test_dim}")
-        # print(f"motion_encoder_args: {args}")
         assert len(channels) == n_down
         layers = [
-            nn.Conv1d(156, channels[0], 3, 1, 1), # 225 = input_size
+            nn.Conv1d(input_size, channels[0], 3, 1, 1),
             nn.LeakyReLU(0.2, inplace=True),
             ResBlock(channels[0]),
         ]
@@ -123,9 +121,7 @@ class VQEncoderV6(nn.Module):
         # self.out_net.apply(init_weight)
     def forward(self, inputs):
         inputs = inputs.permute(0, 2, 1)
-        # print(f"motion_encoder_inputs.shape: {inputs.shape}, {self.main}")
         outputs = self.main(inputs).permute(0, 2, 1)
-        # print(f"motion_encoder_VQEncoderV6_outputs: {outputs}")
         return outputs
 
 class VQEncoderV4(nn.Module):
@@ -722,11 +718,6 @@ class LocalEncoder(nn.Module):
 
         self.channel_list = []
         self.edge_num = [len(topology)]
-        print(f"self_topologies: {self.topologies}")
-        
-        print(f"self.channel_base: {self.channel_base}")
-        print(f"self_edge_num: {self.edge_num}")
-        
         self.pooling_list = []
         self.layers = nn.ModuleList()
         self.args = args
@@ -743,8 +734,8 @@ class LocalEncoder(nn.Module):
         for i in range(args.num_layers):
             seq = []
             neighbour_list = find_neighbor(self.topologies[i], args.skeleton_dist)
-            in_channels = 156 # self.channel_base[i] * self.edge_num[i]
-            out_channels = 156 # self.channel_base[i + 1] * self.edge_num[i]
+            in_channels = self.channel_base[i] * self.edge_num[i]
+            out_channels = self.channel_base[i + 1] * self.edge_num[i]
             if i == 0:
                 self.channel_list.append(in_channels)
             self.channel_list.append(out_channels)
@@ -756,7 +747,7 @@ class LocalEncoder(nn.Module):
 
             if args.use_residual_blocks:
                 # (T, J, D) => (T/2, J', 2D)
-                seq.append(SkeletonResidual(self.topologies[i], neighbour_list, joint_num=52, in_channels=in_channels, out_channels=out_channels,
+                seq.append(SkeletonResidual(self.topologies[i], neighbour_list, joint_num=self.edge_num[i], in_channels=in_channels, out_channels=out_channels,
                                             kernel_size=kernel_size, stride=2, padding=padding, padding_mode=args.padding_mode, bias=bias,
                                             extra_conv=args.extra_conv, pooling_mode=args.skeleton_pool, activation=args.activation, last_pool=last_pool))
             else:
@@ -791,9 +782,7 @@ class LocalEncoder(nn.Module):
     def forward(self, input):
         #bs, n, c = input.shape[0], input.shape[1], input.shape[2]
         output = input.permute(0, 2, 1)#input.reshape(bs, n, -1, 6)
-        # print(f"self.layers: {self.layers}")
         for layer in self.layers:
-            # print(f"layer in motion encoder: {layer}")
             output = layer(output)
         #output = output.view(output.shape[0], -1)
         output = output.permute(0, 2, 1)
