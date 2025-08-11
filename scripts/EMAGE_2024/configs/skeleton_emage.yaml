@@ -1,0 +1,130 @@
+is_train: True
+out_path: ./outputs/audio2poseglobal/ 
+
+##-----------For run in lab server-----------##
+# root_path: /data/nas07/PersonalData/danh/PantoMatrix/beat_partial/30_ones
+# train_data_path: /beat_4gnlish_30_30_v0.2.0/train_norm/ 
+# val_data_path: /beat_4gnlish_30_30_v0.2.0/val_norm/ 
+# test_data_path: /beat_4gnlish_30_30_v0.2.0/test_norm/ 
+# mean_pose_path: /beat_4gnlish_30_30_v0.2.0/train_norm/
+# std_pose_path: /beat_4gnlish_30_30_v0.2.0/train_norm/
+
+# root_path: /data/nas07/PersonalData/danh/PantoMatrix/beat_partial
+# train_data_path: /beat_4english_30_1_normalized/train_copy/ 
+# val_data_path: /beat_4english_30_1_normalized/val_copy/ 
+# test_data_path: /beat_4english_30_1_normalized/test_copy/ 
+# mean_pose_path: /beat_4english_30_1_normalized/train_copy/
+# std_pose_path: /beat_4english_30_1_normalized/train_copy/
+
+root_path: /data/nas07/PersonalData/danh/PantoMatrix/beat_partial
+train_data_path: /test_code/train/ 
+val_data_path: /test_code/val/ 
+test_data_path: /test_code/test/ 
+mean_pose_path: /test_code/train/
+std_pose_path: /test_code/train/
+##-------------------------------------------##
+
+# ##-----------For run in NCHC server-----------##
+# root_path: /work/vanthoai97/beat_vicon_hips/data
+# train_data_path: /beat_4gnlish_30_30_v0.2.0/train_norm/ 
+# val_data_path: /beat_4gnlish_30_30_v0.2.0/val_norm/ 
+# test_data_path: /beat_4gnlish_30_30_v0.2.0/test_norm/ 
+# mean_pose_path: /beat_4gnlish_30_30_v0.2.0/train_norm/
+# std_pose_path: /beat_4gnlish_30_30_v0.2.0/train_norm/
+# ##-------------------------------------------##
+
+cache_path: standardize_pose_1/  # nằm trong folder data
+
+stat: ts
+dataset: beat_skeleton_emage_final
+new_cache: False
+
+ddp: False
+project: emage_skeleton
+
+# eval_model: motion_representation
+# e_name: VAESKConv
+# data_path_1: ./EMAGE/
+
+# model
+vae_test_len: 32
+vae_test_dim: 450
+vae_test_stride: 20
+vae_length: 240
+vae_codebook_size: 256
+vae_layer: 4
+vae_grow: [1,1,2,1]
+variational: False
+
+# motion config
+ori_joints: skeleton_joint_full
+tar_joints: skeleton_joint_full
+pose_version: skeleton_joint_full
+pose_rep: bvh_rot
+pose_fps: 30
+pose_dims: 450
+pose_length: 64
+stride: 20
+test_length: 64
+motion_f: 256
+m_pre_encoder: null
+m_encoder: null
+m_fix_pre: False
+
+# audio config
+audio_rep: onset+amplitude
+audio_sr: 16000
+audio_fps: 16000
+audio_norm: False
+audio_f: 256
+
+# facial config
+facial_rep: facial52
+facial_dims: 51
+facial_norm: False
+facial_f: 0
+f_pre_encoder: null
+f_encoder: null
+f_fix_pre: False
+
+# text config
+word_rep: text
+word_index_num: 11195
+word_dims: 300
+freeze_wordembed: False
+word_f: 256
+t_pre_encoder: fasttext
+t_encoder: null
+t_fix_pre: False
+
+
+# speaker config
+id_rep: onehot
+speaker_f: 0
+
+# model config
+batch_size: 64
+# warmup_epochs: 1
+# warmup_lr: 1e-6
+lr_base: 5e-4
+model: emage
+g_name: MAGE_Transformer
+trainer: skeleton_emage_beat_final
+hidden_size: 768
+n_layer: 1
+ 
+rec_weight: 1
+grad_norm: 0.99
+epochs: 800
+test_period: 1
+ll: 3
+lf: 3
+lu: 3
+lh: 3
+cl: 1
+cf: 0
+cu: 1
+ch: 1
+
+multi_length_training: [1]
+

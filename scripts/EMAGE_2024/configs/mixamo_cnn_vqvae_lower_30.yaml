@@ -1,0 +1,103 @@
+is_train: True
+out_path: ./outputs/audio2pose_lowerfoot_mixamo/ 
+
+# root_path: /data/nas07/PersonalData/danh/EMAGEMixamo
+# train_data_path: /mixamo_english_30_2_1/train_norm/ 
+# val_data_path: /mixamo_english_30_2_1/val_norm/ 
+# test_data_path: /mixamo_english_30_2_1/test_norm/ 
+# mean_pose_path: /mixamo_english_30_2_1/train_norm/
+# std_pose_path: /mixamo_english_30_2_1/train_norm/
+
+# root_path: /data/nas07/PersonalData/danh/EMAGEMixamo
+# train_data_path: /mixamo_english_30_4_v2/train_norm/ 
+# val_data_path: /mixamo_english_30_4_v2/val_norm/ 
+# test_data_path: /mixamo_english_30_4_v2/test_norm/ 
+# mean_pose_path: /mixamo_english_30_4_v2/train_norm/
+# std_pose_path: /mixamo_english_30_4_v2/train_norm/
+
+root_path: /data/nas07/PersonalData/danh/EMAGEMixamo
+
+train_data_path: /mixamo_english_30_4_811_all/train_norm/ 
+val_data_path: /mixamo_english_30_4_811_all/val_norm/ 
+test_data_path: /mixamo_english_30_4_811_all/test_norm/ 
+mean_pose_path: /mixamo_english_30_4_811_all/train_norm/
+std_pose_path: /mixamo_english_30_4_811_all/train_norm/
+
+cache_path: standardize_pose/  # nằm trong folder data
+
+new_cache: False
+loader_workers: 2
+batch_size: 64
+#-- Need to be changed to work with skeleton
+ori_joints: mixamo_joint_full
+tar_joints: mixamo_lower
+pose_version: mixamo_lower
+pose_fps: 30
+pose_rep: bvh_rot
+
+stat: ts
+dataset: mixamo_skeleton_lower_final
+
+##-----Keep unchanged-------##
+ddp: False
+project: emage_skeleton
+
+##-----Keep unchanged-------##
+vae_test_len: 64
+vae_test_dim: 59
+pose_dims: 59 # 9*6+ (2 của contact) + (3 của translation)
+vae_test_stride: 20
+vae_length: 256
+vae_codebook_size: 256
+vae_layer: 4
+vae_grow: [1,1,2,1]
+variational: False
+##---------------------------##
+pose_length: 64 #keep unchanged
+stride: 20 #keep unchanged
+lr_base: 3e-4
+decay_epochs: 780
+model: motion_representation
+g_name: VQVAEConvZero #VAEConvZero
+trainer: mixamo_lower_final # change to work with skeleton
+##---------------------------##
+
+pretrain: False
+# audio_f: 256
+# a_pre_encoder: tcn_camn
+# a_encoder: lp
+# a_fix_pre: False
+
+# freeze_wordembed: False
+# word_f: 128
+# t_pre_encoder: fasttext
+# t_encoder: lp
+# t_fix_pre: False
+
+# motion_f: 256
+# m_pre_encoder: lp
+# m_encoder: lp
+# m_fix_pre: False
+
+# facial_f: 128
+# f_pre_encoder: lp
+# f_encoder: lp
+# f_fix_pre: False
+
+#m_decoder: lstm
+#decode_fusion: cat
+#n_layer: 2
+#hidden_size: 512
+rec_weight: 1
+rec_pos_weight: 1
+rec_ver_weight: 1
+# rec_fac_weight: 1
+#ita_weight: 0
+#iwa_weight: 0
+#fusion_mode: sum
+# grad_norm: 1
+epochs: 800
+test_period: 10
+
+## Thêm vào
+multi_length_training: [1] #Vì trong data loader cần biến này#
