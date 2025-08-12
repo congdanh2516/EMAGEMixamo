@@ -923,26 +923,78 @@ def save_checkpoints(save_path, model, opt=None, epoch=None, lrs=None):
         states = { 'model_state': model.state_dict(),}
     torch.save(states, save_path)
 
-def load_checkpoints(model, save_path, load_name='model'):
-    states = torch.load(save_path)
-    new_weights = OrderedDict()
-    flag=False
-    for k, v in states['model_state'].items():
-        #print(k)
-        if "module" not in k:
-            break
-        else:
-            new_weights[k[7:]]=v
-            flag=True
-    if flag: 
-        try:
-            model.load_state_dict(new_weights)
-        except:
-            #print(states['model_state'])
-            model.load_state_dict(states['model_state'])
-    else:
-        model.load_state_dict(states['model_state'])
-    logger.info(f"load self-pretrained checkpoints for {load_name}")
+# def load_checkpoints(model, save_path, load_name='model'):
+#     states = torch.load(save_path)
+#     new_weights = OrderedDict()
+#     flag=False
+#     for k, v in states['model_state'].items():
+#         #print(k)
+#         if "module" not in k:
+#             break
+#         else:
+#             new_weights[k[7:]]=v
+#             flag=True
+#     if flag: 
+#         try:
+#             model.load_state_dict(new_weights)
+#         except:
+#             #print(states['model_state'])
+#             model.load_state_dict(states['model_state'])
+#     else:
+#         model.load_state_dict(states['model_state'])
+#     logger.info(f"load self-pretrained checkpoints for {load_name}")
+
+# new load_checkpoints - begin
+
+def _extract_state_dict(ckpt):
+    if isinstance(ckpt, dict):
+        for k in ('model_state', 'state_dict', 'ema_state_dict'):
+            if k in ckpt and isinstance(ckpt[k], dict):
+                return ckpt[k]
+    # fallback: assume raw state_dict
+    return ckpt
+
+def _needs_module_prefix(keys):
+    # True if most keys start with "module."
+    sample = list(keys)[:20]
+    return sum(k.startswith('module.') for k in sample) > len(sample) // 2
+
+def _add_module_prefix(state):
+    return {('module.' + k if not k.startswith('module.') else k): v for k, v in state.items()}
+
+def _strip_module_prefix(state):
+    return {k.replace('module.', '', 1) if k.startswith('module.') else k: v for k, v in state.items()}
+
+def load_checkpoints(model, save_path, load_name='model', device=None, strict=False):
+    logger.info(f"Loading checkpoint for {load_name} from: {save_path}")
+    ckpt = torch.load(save_path, map_location=device or 'cpu')
+    state = _extract_state_dict(ckpt)
+
+    # Detect expectation vs. checkpoint format
+    model_keys = model.state_dict().keys()
+    model_wants_module = _needs_module_prefix(model_keys)
+    ckpt_has_module = _needs_module_prefix(state.keys())
+
+    # Transform if mismatched
+    if model_wants_module and not ckpt_has_module:
+        logger.info("Checkpoint lacks 'module.' but model expects it — adding prefix.")
+        state = _add_module_prefix(state)
+    elif not model_wants_module and ckpt_has_module:
+        logger.info("Checkpoint has 'module.' but model doesn't — stripping prefix.")
+        state = _strip_module_prefix(state)
+
+    # Load (non-strict first so we can report), then enforce if requested
+    missing, unexpected = model.load_state_dict(state, strict=False)
+    if missing or unexpected:
+        logger.warning(f"Missing keys: {missing}")
+        logger.warning(f"Unexpected keys: {unexpected}")
+        if strict:
+            raise RuntimeError("State dict mismatch (set strict=False to ignore).")
+
+    logger.info(f"Loaded checkpoints for {load_name}")
+    return model
+
+# new load_checkpoints - end
 
 def model_complexity(model, args):
     from ptflops import get_model_complexity_info
