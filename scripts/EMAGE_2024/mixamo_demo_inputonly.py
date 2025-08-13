@@ -52,7 +52,7 @@ _global_motion = None
 current_dir = os.path.dirname(os.path.abspath(__file__))
 pretrained_dir = os.path.abspath(os.path.join(current_dir, "..", "..", "pretrained/mixamo"))
 
-test_checkpoint = pretrained_dir + "/last_9.bin"
+test_checkpoint = pretrained_dir + "/globaltrans_579.bin"
 
 def fix_abnormal_joint_motion_soft(rec_pose, joint_idx=10, fps=30.0,
                                    abnormal_threshold_deg_per_s=800.0,
