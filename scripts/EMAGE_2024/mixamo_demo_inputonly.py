@@ -49,6 +49,11 @@ _global_motion = None
 # _joint_mask_hands = None 
 # _joint_mask_lower = None
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+pretrained_dir = os.path.abspath(os.path.join(current_dir, "..", "..", "pretrained/mixamo"))
+
+test_checkpoint = pretrained_dir + "/last_9.bin"
+
 def fix_abnormal_joint_motion_soft(rec_pose, joint_idx=10, fps=30.0,
                                    abnormal_threshold_deg_per_s=800.0,
                                    blend_factor=0.2):
@@ -212,30 +217,31 @@ class BaseTrainer(object):
             # face model
             self.args.vae_test_dim = 51
             _vq_model_face = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-            other_tools.load_checkpoints(_vq_model_face, self.args.code_path + "/pretrained/mixamo/face/last_699.bin", args.e_name)
+            other_tools.load_checkpoints(_vq_model_face, pretrained_dir + "/face/face_785.bin", args.e_name)
             # Lab/mixamo_v2/pretrained/mixamo/face/last_699.bin
+            # self.args.code_path + "/pretrained/mixamo/face/last_699.bin"
     
             # upper model
             self.args.vae_test_dim = 66
             _vq_model_upper = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-            other_tools.load_checkpoints(_vq_model_upper, self.args.code_path + "/pretrained/mixamo/upper/last_799.bin", args.e_name)
+            other_tools.load_checkpoints(_vq_model_upper,  pretrained_dir + "/upper/upper_1041.bin", args.e_name)
     
             # hand model
             self.args.vae_test_dim = 192
             _vq_model_hands = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-            other_tools.load_checkpoints(_vq_model_hands, self.args.code_path + "/pretrained/mixamo/hands/last_795.bin", args.e_name)
+            other_tools.load_checkpoints(_vq_model_hands,  pretrained_dir + "/hands/hands_795.bin", args.e_name)
     
             # lower model
             self.args.vae_test_dim = 59
             self.args.vae_layer = 4
             _vq_model_lower = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-            other_tools.load_checkpoints(_vq_model_lower, self.args.code_path + "/pretrained/mixamo/lowerfoot/last_486.bin", args.e_name)
+            other_tools.load_checkpoints(_vq_model_lower,  pretrained_dir + "/lowerfoot/lowerfoot_619.bin", args.e_name)
     
             # global motion
             self.args.vae_test_dim = 59
             self.args.vae_layer = 4
             _global_motion = getattr(vq_model_module, "VAEConvZero")(self.args).to(self.rank)
-            other_tools.load_checkpoints(_global_motion, self.args.code_path + "/pretrained/mixamo/lowerfoot/last_486.bin", args.e_name)
+            other_tools.load_checkpoints(_global_motion,  pretrained_dir + "/lowerfoot/lowerfoot_619.bin", args.e_name)
             
             self.args.vae_test_dim = 312
             self.args.vae_layer = 4
@@ -803,7 +809,7 @@ def emage(audio_path):
 
     trainer = BaseTrainer(args, sp=smplx_path, ap=audio_input, tp=text_path)
     if _global_inference == False:
-        other_tools_hf.load_checkpoints(inference_model, args.test_ckpt, args.g_name)
+        other_tools_hf.load_checkpoints(inference_model, test_checkpoint, args.g_name)
     result = trainer.test_demo(999, ap=audio_path)
     return result
 
