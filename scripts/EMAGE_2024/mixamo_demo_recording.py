@@ -33,6 +33,7 @@ import librosa
 import tempfile
 import scipy.io.wavfile as wavfile
 import json
+import sounddevice as sd
 
 
 _global_inference = False
@@ -814,24 +815,32 @@ def emage(audio_path):
     return result
 
             
-if __name__ == "__main__":
+def record_audio(duration=5, samplerate=16000):
+    print(f"🎙  Recording... {duration} s...")
+    audio_data = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype='float32')
+    sd.wait()  # chờ ghi âm xong
+    print("Done")
+    return samplerate, audio_data
 
+
+if __name__ == "__main__":
     os.environ["MASTER_ADDR"] = '127.0.0.1'
     os.environ["MASTER_PORT"] = '8675'
 
-    while True: 
-        audio_path = input("Enter audio path (.wav): ").strip()
+    while True:
+        try:
+            cmd = input("Enter the number of second, (enter '0' to exit): ").strip()
+            if cmd == '0':
+                break
 
-        if audio_path == '0':
-            break
+            duration = int(cmd)
+            audio_input = record_audio(duration=duration, samplerate=16000)
 
-        if not os.path.isfile(audio_path):
-            print(f"Error'{audio_path}' no exist")
-            sys.exit(1)
-
-        output_file = emage(audio_path)
-        print(f"\nFinished. Result path: {output_file}\n")
-        _global_inference = True
+            output_file = emage(audio_input)
+            print(f"\nFinished. Result path: {output_file}\n")
+            _global_inference = True
+        except Exception as e:
+            print(f"Error: {e}")
 
 
 # if __name__ == "__main__":
