@@ -94,7 +94,7 @@ class CustomDataset(Dataset):
 
     def build_cache(self, preloaded_dir):
         logger.info(f"Audio bit rate: {self.args.audio_fps}")
-        logger.info("Reading data '{}'...".format(self.data_dir))
+        # logger.info("Reading data '{}'...".format(self.smplx_path))
         logger.info("Creating the dataset cache...")
         if self.args.new_cache:
             if os.path.exists(preloaded_dir):

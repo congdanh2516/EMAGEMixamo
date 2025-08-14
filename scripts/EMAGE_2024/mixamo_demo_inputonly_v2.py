@@ -44,10 +44,19 @@ _vq_model_hands = None
 _vq_model_lower = None
 _global_motion = None
 
-# _joint_mask_face = None
-# _joint_mask_upper = None
-# _joint_mask_hands = None 
-# _joint_mask_lower = None
+_joint_mask_face = None
+_joint_mask_upper = None
+_joint_mask_hands = None 
+_joint_mask_lower = None
+
+_joints = None
+
+_log_softmax = None
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+pretrained_dir = os.path.abspath(os.path.join(current_dir, "..", "..", "pretrained/mixamo"))
+
+test_checkpoint = pretrained_dir + "/last_92.bin"
 
 def fix_abnormal_joint_motion_soft(rec_pose, joint_idx=10, fps=30.0,
                                    abnormal_threshold_deg_per_s=800.0,
@@ -110,17 +119,12 @@ def load_framewise_pose_file(path):
 
 class BaseTrainer(object):
     def __init__(self, args, sp, ap, tp):
-        global inference_model
-        global _vq_model_face
-        global _vq_model_upper
-        global _vq_model_hands
-        global _vq_model_lower
-        global _global_motion 
+        
+        global inference_model, _vq_model_face, _vq_model_upper, _vq_model_hands, \
+       _vq_model_lower, _global_motion, \
+       _joint_mask_face, _joint_mask_upper, _joint_mask_hands, _joint_mask_lower, \
+       _joints, _log_softmax
 
-        # global _joint_mask_face
-        # global _joint_mask_upper
-        # global _joint_mask_hands
-        # global _joint_mask_lower
         
         hf_dir = "hf"
         # print(f"args.out_path: {args.out_path}")
@@ -130,7 +134,7 @@ class BaseTrainer(object):
         self.audio_path = args.out_path + "custom/" + hf_dir + "/tmp.wav"
         audio, ssr = librosa.load(self.audio_path)
         ap = (ssr, audio)
-        # self.args = args
+        self.args = args
         self.rank = 0 # dist.get_rank()
        
         #self.checkpoint_path = args.out_path + "custom/" + args.name + args.notes + "/" #wandb.run.dir #args.cache_path+args.out_path+"/"+args.name
@@ -145,65 +149,50 @@ class BaseTrainer(object):
                 drop_last=False,
             )
         logger.info(f"Init test dataloader success")
-            
-        model_module = __import__(f"models.{args.model}", fromlist=["something"])
-        
-        if args.ddp:
-            inference_model = getattr(model_module, args.g_name)(args).to(self.rank)
-            process_group = torch.distributed.new_group()
-            inference_model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(inference_model, process_group)   
-            inference_model = DDP(inference_model, device_ids=[self.rank], output_device=self.rank,
-                             broadcast_buffers=False, find_unused_parameters=False)
-        else: 
-            inference_model = torch.nn.DataParallel(getattr(model_module, args.g_name)(args), args.gpus).cuda()
-        
-        if self.rank == 0:
-            # logger.info(inference_model)
-            logger.info(f"init {args.g_name} success")
-    
-            # self.smplx = smplx.create(
-            # self.args.data_path_1+"smplx_models/", 
-            #     model_type='smplx',
-            #     gender='NEUTRAL_2020', 
-            #     use_face_contour=False,
-            #     num_betas=300,
-            #     num_expression_coeffs=100, 
-            #     ext='npz',
-            #     use_pca=False,
-            # ).to(self.rank).eval()
-        self.args = args
-        self.joints = self.test_data.joints
-        # self.ori_joint_list = joints_list[self.args.ori_joints]
-        self.ori_joint_list = joints_list[self.args.ori_joints]
-        self.tar_joint_list_face = joints_list["mixamo_face"]
-        self.tar_joint_list_upper = joints_list["mixamo_upper"]
-        self.tar_joint_list_hands = joints_list["mixamo_hand"]
-        self.tar_joint_list_lower = joints_list["mixamo_lower"]
-
-        # print(f"self.args.ori_joints: {self.args.ori_joints}")
-        # print(f"self.ori_joint_list: {self.ori_joint_list}")
-
-        self.joints = 52
-       
-        self.joint_mask_face = np.zeros(len(list(self.ori_joint_list.keys()))*3)
-        for joint_name in self.tar_joint_list_face:
-            self.joint_mask_face[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
-            
-        self.joint_mask_upper = np.zeros(len(list(self.ori_joint_list.keys()))*3)
-        for joint_name in self.tar_joint_list_upper:
-            self.joint_mask_upper[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
-            
-        self.joint_mask_hands = np.zeros(len(list(self.ori_joint_list.keys()))*3)
-        for joint_name in self.tar_joint_list_hands:
-            self.joint_mask_hands[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
-            
-        self.joint_mask_lower = np.zeros(len(list(self.ori_joint_list.keys()))*3)
-        for joint_name in self.tar_joint_list_lower:
-            self.joint_mask_lower[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
-
-        self.tracker = other_tools_hf.EpochTracker(["fid", "l1div", "bc", "rec", "trans", "vel", "transv", 'dis', 'gen', 'acc', 'transa', 'exp', 'lvd', 'mse', "cls", "rec_face", "latent", "cls_full", "cls_self", "cls_word", "latent_word","latent_self"], [False,True,True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,False,False,False])
 
         if _global_inference == False:
+            
+            model_module = __import__(f"models.{args.model}", fromlist=["something"])
+            
+            if args.ddp:
+                inference_model = getattr(model_module, args.g_name)(args).to(self.rank)
+                process_group = torch.distributed.new_group()
+                inference_model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(inference_model, process_group)   
+                inference_model = DDP(inference_model, device_ids=[self.rank], output_device=self.rank,
+                                 broadcast_buffers=False, find_unused_parameters=False)
+            else: 
+                inference_model = torch.nn.DataParallel(getattr(model_module, args.g_name)(args), args.gpus).cuda()
+            
+            if self.rank == 0:
+                logger.info(f"init {args.g_name} success")
+
+            self.args = args
+            _joints = self.test_data.joints
+            self.ori_joint_list = joints_list[self.args.ori_joints]
+            self.tar_joint_list_face = joints_list["mixamo_face"]
+            self.tar_joint_list_upper = joints_list["mixamo_upper"]
+            self.tar_joint_list_hands = joints_list["mixamo_hand"]
+            self.tar_joint_list_lower = joints_list["mixamo_lower"]
+    
+            _joints  = 52
+           
+            _joint_mask_face = np.zeros(len(list(self.ori_joint_list.keys()))*3)
+            for joint_name in self.tar_joint_list_face:
+                _joint_mask_face[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
+                
+            _joint_mask_upper = np.zeros(len(list(self.ori_joint_list.keys()))*3)
+            for joint_name in self.tar_joint_list_upper:
+                _joint_mask_upper[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
+                
+            _joint_mask_hands = np.zeros(len(list(self.ori_joint_list.keys()))*3)
+            for joint_name in self.tar_joint_list_hands:
+                _joint_mask_hands[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
+                
+            _joint_mask_lower = np.zeros(len(list(self.ori_joint_list.keys()))*3)
+            for joint_name in self.tar_joint_list_lower:
+                _joint_mask_lower[self.ori_joint_list[joint_name][1] - self.ori_joint_list[joint_name][0]:self.ori_joint_list[joint_name][1]] = 1
+    
+            self.tracker = other_tools_hf.EpochTracker(["fid", "l1div", "bc", "rec", "trans", "vel", "transv", 'dis', 'gen', 'acc', 'transa', 'exp', 'lvd', 'mse', "cls", "rec_face", "latent", "cls_full", "cls_self", "cls_word", "latent_word","latent_self"], [False,True,True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,False,False,False])
             
             vq_model_module = __import__(f"models.motion_representation", fromlist=["something"])
             self.args.vae_layer = 2
@@ -212,30 +201,31 @@ class BaseTrainer(object):
             # face model
             self.args.vae_test_dim = 51
             _vq_model_face = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-            other_tools.load_checkpoints(_vq_model_face, self.args.code_path + "/pretrained/mixamo/face/last_699.bin", args.e_name)
+            other_tools.load_checkpoints(_vq_model_face, pretrained_dir + "/face/face_785.bin", args.e_name)
             # Lab/mixamo_v2/pretrained/mixamo/face/last_699.bin
+            # self.args.code_path + "/pretrained/mixamo/face/last_699.bin"
     
             # upper model
             self.args.vae_test_dim = 66
             _vq_model_upper = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-            other_tools.load_checkpoints(_vq_model_upper, self.args.code_path + "/pretrained/mixamo/upper/last_799.bin", args.e_name)
+            other_tools.load_checkpoints(_vq_model_upper,  pretrained_dir + "/upper/upper_1041.bin", args.e_name)
     
             # hand model
             self.args.vae_test_dim = 192
             _vq_model_hands = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-            other_tools.load_checkpoints(_vq_model_hands, self.args.code_path + "/pretrained/mixamo/hands/last_795.bin", args.e_name)
+            other_tools.load_checkpoints(_vq_model_hands,  pretrained_dir + "/hands/hands_795.bin", args.e_name)
     
             # lower model
             self.args.vae_test_dim = 59
             self.args.vae_layer = 4
             _vq_model_lower = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-            other_tools.load_checkpoints(_vq_model_lower, self.args.code_path + "/pretrained/mixamo/lowerfoot/last_486.bin", args.e_name)
+            other_tools.load_checkpoints(_vq_model_lower,  pretrained_dir + "/lowerfoot/lowerfoot_619.bin", args.e_name)
     
             # global motion
             self.args.vae_test_dim = 59
             self.args.vae_layer = 4
             _global_motion = getattr(vq_model_module, "VAEConvZero")(self.args).to(self.rank)
-            other_tools.load_checkpoints(_global_motion, self.args.code_path + "/pretrained/mixamo/lowerfoot/last_486.bin", args.e_name)
+            other_tools.load_checkpoints(_global_motion,  pretrained_dir + "/lowerfoot/lowerfoot_619.bin", args.e_name)
             
             self.args.vae_test_dim = 312
             self.args.vae_layer = 4
@@ -249,27 +239,7 @@ class BaseTrainer(object):
             _vq_model_lower.eval()
             _global_motion.eval()
 
-        # self.cls_loss = nn.NLLLoss().to(self.rank)
-        # self.reclatent_loss = nn.MSELoss().to(self.rank)
-        # self.vel_loss = torch.nn.L1Loss(reduction='mean').to(self.rank)
-        # self.rec_loss = get_loss_func("GeodesicLoss").to(self.rank) 
-        self.log_softmax = nn.LogSoftmax(dim=2).to(self.rank)
-
-         # *********
-        # self.loss_meters = {
-        #     'val_all': other_tools.AverageMeter('val_all'),
-        #     'rec_val': other_tools.AverageMeter('rec_val'),
-        #     'vel_val': other_tools.AverageMeter('vel_val'),
-        #     'acceleration_val': other_tools.AverageMeter('acceleration_val'),
-            
-        # }
-        # self.best_epochs = {
-        #     'val_all': [np.inf, 0],
-        #     'rec_val': [np.inf, 0],
-        #     'vel_val': [np.inf, 0],
-        #     'acceleration_val': [np.inf, 0],
-        # }
-        # *********
+            _log_softmax = nn.LogSoftmax(dim=2).to(self.rank)
 
     
     def inverse_selection(self, filtered_t, selection_array, n):
@@ -293,7 +263,7 @@ class BaseTrainer(object):
         # print(f"tar_pose_raw: {tar_pose_raw}, {tar_pose_raw.shape}")
         tar_pose = tar_pose_raw[:, :, :156].to(self.rank)
         # print(f"tar_pose: {tar_pose.shape}")
-        # print(f"self.joint_mask_hands: len(self.joint_mask_hands)")
+        # print(f"_joint_mask_hands: len(_joint_mask_hands)")
         tar_contact = tar_pose_raw[:, :, 156:156+2].to(self.rank)
         tar_contact = torch.zeros_like(tar_contact) # nl
         tar_trans = dict_data["trans"].to(self.rank)
@@ -307,20 +277,20 @@ class BaseTrainer(object):
         tar_id = torch.where((tar_id >= 25) | (tar_id < 0), torch.tensor(0, device=tar_id.device), tar_id)
         # *********
 
-        bs, n, j = tar_pose.shape[0], tar_pose.shape[1], self.joints
+        bs, n, j = tar_pose.shape[0], tar_pose.shape[1], _joints
 
         tar_pose_face = tar_exps
         # print(f"tar_pose_face: {tar_pose_face}, {tar_pose_face.shape}")
         
-        tar_pose_hands = tar_pose[:, :, self.joint_mask_hands.astype(bool)]
+        tar_pose_hands = tar_pose[:, :, _joint_mask_hands.astype(bool)]
         tar_pose_hands = rc.euler_angles_to_matrix(tar_pose_hands.reshape(bs, n, 32, 3), "YXZ")
         tar_pose_hands = rc.matrix_to_rotation_6d(tar_pose_hands).reshape(bs, n, 32*6)
 
-        tar_pose_upper = tar_pose[:, :, self.joint_mask_upper.astype(bool)] # ([bs, 64, 42])
+        tar_pose_upper = tar_pose[:, :, _joint_mask_upper.astype(bool)] # ([bs, 64, 42])
         tar_pose_upper = rc.euler_angles_to_matrix(tar_pose_upper.reshape(bs, n, 11, 3), "YXZ")
         tar_pose_upper = rc.matrix_to_rotation_6d(tar_pose_upper).reshape(bs, n, 11*6)
 
-        tar_pose_leg = tar_pose[:, :, self.joint_mask_lower.astype(bool)]
+        tar_pose_leg = tar_pose[:, :, _joint_mask_lower.astype(bool)]
         tar_pose_leg = torch.zeros_like(tar_pose_leg) # nl
         tar_pose_leg = rc.euler_angles_to_matrix(tar_pose_leg.reshape(bs, n, 9, 3), "YXZ")
         tar_pose_leg = rc.matrix_to_rotation_6d(tar_pose_leg).reshape(bs, n, 9*6)
@@ -378,7 +348,7 @@ class BaseTrainer(object):
     
     def _g_test(self, loaded_data):
         mode = 'test'
-        bs, n, j = loaded_data["tar_pose"].shape[0], loaded_data["tar_pose"].shape[1], self.joints 
+        bs, n, j = loaded_data["tar_pose"].shape[0], loaded_data["tar_pose"].shape[1], _joints 
         tar_pose = loaded_data["tar_pose"]
         # tar_beta = loaded_data["tar_beta"]
         in_word =None# loaded_data["in_word"]
@@ -404,17 +374,17 @@ class BaseTrainer(object):
         tar_pose_face = tar_exps
 
         # hands
-        tar_pose_hands = tar_pose[:, :, self.joint_mask_hands.astype(bool)]
+        tar_pose_hands = tar_pose[:, :, _joint_mask_hands.astype(bool)]
         tar_pose_hands = rc.euler_angles_to_matrix(tar_pose_hands.reshape(bs, n, 32, 3), "YXZ")
         tar_pose_hands = rc.matrix_to_rotation_6d(tar_pose_hands).reshape(bs, n, 32*6)
 
         # upper
-        tar_pose_upper = tar_pose[:, :, self.joint_mask_upper.astype(bool)]
+        tar_pose_upper = tar_pose[:, :, _joint_mask_upper.astype(bool)]
         tar_pose_upper = rc.euler_angles_to_matrix(tar_pose_upper.reshape(bs, n, 11, 3), "YXZ")
         tar_pose_upper = rc.matrix_to_rotation_6d(tar_pose_upper).reshape(bs, n, 11*6)
 
         # lower
-        tar_pose_leg = tar_pose[:, :, self.joint_mask_lower.astype(bool)]
+        tar_pose_leg = tar_pose[:, :, _joint_mask_lower.astype(bool)]
         tar_pose_leg = torch.zeros_like(tar_pose_leg) # nl
         tar_pose_leg = rc.euler_angles_to_matrix(tar_pose_leg.reshape(bs, n, 9, 3), "YXZ")
         tar_pose_leg = rc.matrix_to_rotation_6d(tar_pose_leg).reshape(bs, n, 9*6)
@@ -458,28 +428,28 @@ class BaseTrainer(object):
             )
             
             if self.args.cu != 0:
-                rec_index_upper = self.log_softmax(net_out_val["cls_upper"]).reshape(-1, self.args.vae_codebook_size)
+                rec_index_upper = _log_softmax(net_out_val["cls_upper"]).reshape(-1, self.args.vae_codebook_size)
                 _, rec_index_upper = torch.max(rec_index_upper.reshape(-1, self.args.pose_length, self.args.vae_codebook_size), dim=2)
                 #rec_upper = _vq_model_upper.decode(rec_index_upper)
             else:
                 _, rec_index_upper, _, _ = _vq_model_upper.quantizer(net_out_val["rec_upper"])
                 #rec_upper = _vq_model_upper.decoder(rec_index_upper)
             if self.args.cl != 0:
-                rec_index_lower = self.log_softmax(net_out_val["cls_lower"]).reshape(-1, self.args.vae_codebook_size)
+                rec_index_lower = _log_softmax(net_out_val["cls_lower"]).reshape(-1, self.args.vae_codebook_size)
                 _, rec_index_lower = torch.max(rec_index_lower.reshape(-1, self.args.pose_length, self.args.vae_codebook_size), dim=2)
                 #rec_lower = _vq_model_lower.decode(rec_index_lower)
             else:
                 _, rec_index_lower, _, _ = _vq_model_lower.quantizer(net_out_val["rec_lower"])
                 #rec_lower = _vq_model_lower.decoder(rec_index_lower)
             if self.args.ch != 0:
-                rec_index_hands = self.log_softmax(net_out_val["cls_hands"]).reshape(-1, self.args.vae_codebook_size)
+                rec_index_hands = _log_softmax(net_out_val["cls_hands"]).reshape(-1, self.args.vae_codebook_size)
                 _, rec_index_hands = torch.max(rec_index_hands.reshape(-1, self.args.pose_length, self.args.vae_codebook_size), dim=2)
                 #rec_hands = _vq_model_hands.decode(rec_index_hands)
             else:
                 _, rec_index_hands, _, _ = _vq_model_hands.quantizer(net_out_val["rec_hands"])
                 #rec_hands = _vq_model_hands.decoder(rec_index_hands)
             if self.args.cf != 0:
-                rec_index_face = self.log_softmax(net_out_val["cls_face"]).reshape(-1, self.args.vae_codebook_size)
+                rec_index_face = _log_softmax(net_out_val["cls_face"]).reshape(-1, self.args.vae_codebook_size)
                 _, rec_index_face = torch.max(rec_index_face.reshape(-1, self.args.pose_length, self.args.vae_codebook_size), dim=2)
                 #rec_face = _vq_model_face.decoder(rec_index_face)
             else:
@@ -522,18 +492,18 @@ class BaseTrainer(object):
             rec_pose_upper = rec_upper_last.reshape(bs, n, 11, 6)
             rec_pose_upper = rc.rotation_6d_to_matrix(rec_pose_upper)#
             rec_pose_upper = rc.matrix_to_axis_angle(rec_pose_upper).reshape(bs*n, 11*3)
-            rec_pose_upper_recover = self.inverse_selection_tensor(rec_pose_upper, self.joint_mask_upper, bs*n)
+            rec_pose_upper_recover = self.inverse_selection_tensor(rec_pose_upper, _joint_mask_upper, bs*n)
             
             rec_pose_lower = rec_pose_legs.reshape(bs, n, 9, 6)
             rec_pose_lower = torch.zeros_like(rec_pose_lower) # nl
             rec_pose_lower = rc.rotation_6d_to_matrix(rec_pose_lower)
             rec_pose_lower = rc.matrix_to_axis_angle(rec_pose_lower).reshape(bs*n, 9*3)
-            rec_pose_lower_recover = self.inverse_selection_tensor(rec_pose_lower, self.joint_mask_lower, bs*n)
+            rec_pose_lower_recover = self.inverse_selection_tensor(rec_pose_lower, _joint_mask_lower, bs*n)
             
             rec_pose_hands = rec_hands_last.reshape(bs, n, 32, 6)
             rec_pose_hands = rc.rotation_6d_to_matrix(rec_pose_hands)
             rec_pose_hands = rc.matrix_to_axis_angle(rec_pose_hands).reshape(bs*n, 32*3)
-            rec_pose_hands_recover = self.inverse_selection_tensor(rec_pose_hands, self.joint_mask_hands, bs*n)
+            rec_pose_hands_recover = self.inverse_selection_tensor(rec_pose_hands, _joint_mask_hands, bs*n)
             
             rec_pose = rec_pose_upper_recover + rec_pose_lower_recover + rec_pose_hands_recover 
             rec_pose = rc.axis_angle_to_matrix(rec_pose.reshape(bs, n, j, 3))
@@ -575,20 +545,20 @@ class BaseTrainer(object):
         rec_pose_upper = rec_upper.reshape(bs, n, 11, 6)
         rec_pose_upper = rc.rotation_6d_to_matrix(rec_pose_upper)#
         rec_pose_upper = rc.matrix_to_axis_angle(rec_pose_upper).reshape(bs*n, 11*3)
-        rec_pose_upper_recover = self.inverse_selection_tensor(rec_pose_upper, self.joint_mask_upper, bs*n)
+        rec_pose_upper_recover = self.inverse_selection_tensor(rec_pose_upper, _joint_mask_upper, bs*n)
         
         rec_pose_lower = rec_pose_legs.reshape(bs, n, 9, 6)
         rec_pose_lower = torch.zeros_like(rec_pose_lower) # nl
         rec_pose_lower = rc.rotation_6d_to_matrix(rec_pose_lower)
         rec_lower2global = rc.matrix_to_rotation_6d(rec_pose_lower.clone()).reshape(bs, n, 9*6)
         rec_pose_lower = rc.matrix_to_axis_angle(rec_pose_lower).reshape(bs*n, 9*3)
-        rec_pose_lower_recover = self.inverse_selection_tensor(rec_pose_lower, self.joint_mask_lower, bs*n)
+        rec_pose_lower_recover = self.inverse_selection_tensor(rec_pose_lower, _joint_mask_lower, bs*n)
         rec_pose_lower_recover = torch.zeros_like(rec_pose_lower_recover)
         
         rec_pose_hands = rec_hands.reshape(bs, n, 32, 6)
         rec_pose_hands = rc.rotation_6d_to_matrix(rec_pose_hands)
         rec_pose_hands = rc.matrix_to_axis_angle(rec_pose_hands).reshape(bs*n, 32*3)
-        rec_pose_hands_recover = self.inverse_selection_tensor(rec_pose_hands, self.joint_mask_hands, bs*n)
+        rec_pose_hands_recover = self.inverse_selection_tensor(rec_pose_hands, _joint_mask_hands, bs*n)
         
         # rec_pose_jaw = rec_pose_jaw.reshape(bs*n, 6)
         # rec_pose_jaw = rc.rotation_6d_to_matrix(rec_pose_jaw)
@@ -680,23 +650,13 @@ class BaseTrainer(object):
                 tar_trans = net_out['tar_trans']
                 rec_exps = net_out['rec_exps']
                 # print(rec_pose.shape, tar_pose.shape)
-                bs, n, j = tar_pose.shape[0], tar_pose.shape[1], self.joints
+                bs, n, j = tar_pose.shape[0], tar_pose.shape[1], _joints
 
-                # interpolate to 30fps  
-                # if (30/self.args.pose_fps) != 1:
-                #     assert 30%self.args.pose_fps == 0
-                #     n *= int(30/self.args.pose_fps)
-                #     tar_pose = torch.nn.functional.interpolate(tar_pose.permute(0, 2, 1), scale_factor=30/self.args.pose_fps, mode='linear').permute(0,2,1)
-                #     rec_pose = torch.nn.functional.interpolate(rec_pose.permute(0, 2, 1), scale_factor=30/self.args.pose_fps, mode='linear').permute(0,2,1)
-                
-                # print(rec_pose.shape, tar_pose.shape)
                 rec_pose = rc.rotation_6d_to_matrix(rec_pose.reshape(bs*n, j, 6))
                 # rec_pose = rc.matrix_to_euler_angles(rec_pose, "YXZ").reshape(bs*n, j*3)
                 rec_pose = rc.matrix_to_euler_angles(rec_pose, "YXZ").reshape(bs, n, j, 3) 
 
                 rec_pose = np.rad2deg(rec_pose.cpu().numpy())
-
-
 
                 ###------------Fix abnormal motion-----------------##
                 # rec_pose is (bs, n, j, 3) in degrees
@@ -708,12 +668,11 @@ class BaseTrainer(object):
                     blend_factor=0.2  # tweak to control how much smoothing
                 )
                 ###------------Fix abnormal motion-----------------##
-                
+            
                 rec_pose = rec_pose.reshape(bs*n, j*3)
                 trans = torch.zeros_like(rec_trans)
                 trans= rec_trans.reshape(bs*n, 3).cpu().numpy()
 
-                
                 # --- Make a working copy of BVH pose and repeat/trim to match current length ---
                 bvh_pose = bvh_pose_master  # (F_bvh, j*3)
 
@@ -739,12 +698,9 @@ class BaseTrainer(object):
                 # Concatenate translation + pose channels for saving
                 trans = trans
                 rec_pose = np.concatenate([trans, rec_pose], axis=1)  # (frames, 3 + j*3)
-
-
-
+                
                 total_length += n
-                
-                
+                 
                 # seq_name = test_seq_list[its].split('.')[0]  # safer filename
                 result_path = f"{results_save_path}res_{filename}.bvh"
                 with open(f"{results_save_path}result_raw_{filename}.bvh", 'w+') as f_real:
@@ -758,7 +714,6 @@ class BaseTrainer(object):
                 audio_int16 = (audio_np * 32767).astype(np.int16)
                 sample_rate = getattr(self.args, "audio_sample_rate", 16000)
                 wavfile.write(f"{results_save_path}in_audio_{filename}.wav", sample_rate, audio_int16)
-
 
                 ## Save face
                 rec_exps = rec_exps.cpu().numpy().reshape(bs*n, 51)
@@ -803,7 +758,7 @@ def emage(audio_path):
 
     trainer = BaseTrainer(args, sp=smplx_path, ap=audio_input, tp=text_path)
     if _global_inference == False:
-        other_tools_hf.load_checkpoints(inference_model, args.test_ckpt, args.g_name)
+        other_tools_hf.load_checkpoints(inference_model, test_checkpoint, args.g_name)
     result = trainer.test_demo(999, ap=audio_path)
     return result
 
@@ -827,16 +782,3 @@ if __name__ == "__main__":
         print(f"\nFinished. Result path: {output_file}\n")
         _global_inference = True
 
-
-# if __name__ == "__main__":
-#     audio_path = input("Enter audio path (.wav): ").strip()
-
-#     if not os.path.isfile(audio_path):
-#         print(f"Error'{audio_path}' no exist")
-#         sys.exit(1)
-
-#     os.environ["MASTER_ADDR"] = '127.0.0.1'
-#     os.environ["MASTER_PORT"] = '8675'
-
-#     output_file = emage(audio_path)
-#     print(f"\nFinished. Result path: {output_file}\n")

@@ -35,7 +35,7 @@ variational: False
 additional_data: False
 cache_path: all_pose/
 dataset: mixamo_testonly_hf
-new_cache: True
+new_cache: False
 
 # motion config
 ori_joints: mixamo_joint_full
