@@ -34,6 +34,22 @@ import tempfile
 import scipy.io.wavfile as wavfile
 import json
 
+import socket
+import time
+import threading
+import struct
+import wave
+
+
+# socket - begin
+
+HOST = '127.0.0.1'  
+PORT = 5005  
+AUDIO_PATH = "C:\\Users\\Duy\\Downloads\\UnityControl\\demo_face\\1_fufu_0_7_7.wav"
+CHUNK_DURATION = (1/30.0)*64 
+
+# socket - end
+
 _global_inference = False
 inference_model = None
 
@@ -124,22 +140,28 @@ class BaseTrainer(object):
        _joint_mask_face, _joint_mask_upper, _joint_mask_hands, _joint_mask_lower, \
        _joints, _log_softmax
 
+        print(f"ap base trainer: {ap}")
         
         hf_dir = "hf"
-        # print(f"args.out_path: {args.out_path}")
-        if not os.path.exists(args.out_path + "custom/" + hf_dir + "/"):
-            os.makedirs(args.out_path + "custom/" + hf_dir + "/")
-        sf.write(args.out_path + "custom/" + hf_dir + "/tmp.wav", ap[1], ap[0])
-        self.audio_path = args.out_path + "custom/" + hf_dir + "/tmp.wav"
-        audio, ssr = librosa.load(self.audio_path)
-        ap = (ssr, audio)
+        # # print(f"args.out_path: {args.out_path}")
+        # if not os.path.exists(args.out_path + "custom/" + hf_dir + "/"):
+        #     os.makedirs(args.out_path + "custom/" + hf_dir + "/")
+        # sf.write(args.out_path + "custom/" + hf_dir + "/tmp.wav", ap[1], ap[0])
+        # self.audio_path = args.out_path + "custom/" + hf_dir + "/tmp.wav"
+        # audio, ssr = librosa.load(self.audio_path, sr=16000)
+        # ap = (ssr, audio)
         self.args = args
         self.rank = 0 # dist.get_rank()
+
+        sample_rate, audio_data = ap # nl
        
         #self.checkpoint_path = args.out_path + "custom/" + args.name + args.notes + "/" #wandb.run.dir #args.cache_path+args.out_path+"/"+args.name
         self.checkpoint_path = args.out_path + "custom/" + hf_dir + "/" 
+        # print(f"ap: {ap}, {len(ap[1])}")
         if self.rank == 0:
-            self.test_data = __import__(f"dataloaders.{args.dataset}", fromlist=["something"]).CustomDataset(args, "test", smplx_path=sp, audio_path=ap, text_path=tp)
+            self.test_data = __import__(f"dataloaders.{args.dataset}", fromlist=["something"]).CustomDataset(
+                args, "test", smplx_path=sp, audio_path=(sample_rate, audio_data), text_path=tp
+            )
             self.test_loader = torch.utils.data.DataLoader(
                 self.test_data, 
                 batch_size=1,  
@@ -402,7 +424,7 @@ class BaseTrainer(object):
         remain = (n - self.args.pre_frames) % (self.args.pose_length - self.args.pre_frames)
         round_l = self.args.pose_length - self.args.pre_frames
 
-        # print(f"roundt: {roundt}")
+        print(f"roundt: {roundt}")
 
         for i in range(0, roundt):
             # in_word_tmp = in_word[:, i*(round_l):(i+1)*(round_l)+self.args.pre_frames]
@@ -515,21 +537,7 @@ class BaseTrainer(object):
             # rec_y_trans = rec_trans_v_s[:,:,0:1]
             # rec_trans = torch.cat([rec_x_trans, rec_y_trans, rec_z_trans], dim=-1)
             rec_trans = torch.zeros_like(rec_trans_v_s) # nl
-            print(f"rec_trans for: {rec_trans.shape}")
             latent_last = torch.cat([rec_pose, rec_trans, rec_lower_last[:, :, 57:59]], dim=-1)
-
-            # rec_exps = rec_face_last # face
-            # rec_exps = rec_exps.cpu().numpy().reshape(bs*n, 51)
-            # rec_exps = np.clip(rec_exps, 0, 1) # Clip the values to range of 0-1
-            # frames = [{"weights": list(map(float, frame))} for frame in rec_exps]
-        
-            # save_dict = {
-            #     "frames": frames
-            # }
-
-            # with open("/home/caocongdanh/rec_face_last.json", "w") as f:
-            #     json.dump(save_dict, f)
-            # line522
 
         rec_index_face = torch.cat(rec_index_all_face, dim=1)
         rec_index_upper = torch.cat(rec_index_all_upper, dim=1)
@@ -593,7 +601,6 @@ class BaseTrainer(object):
         # rec_y_trans = rec_trans_v_s[:,:,0:1]
         # rec_trans = torch.cat([rec_x_trans, rec_y_trans, rec_z_trans], dim=-1)
         rec_trans = torch.zeros_like(rec_trans_v_s)
-        print(f"rec_trans: {rec_trans.shape}")
         tar_pose = tar_pose[:, :n, :]
         tar_exps = tar_exps[:, :n, :]
         tar_trans = tar_trans[:, :n, :]
@@ -617,6 +624,8 @@ class BaseTrainer(object):
 
     def test_demo(self, epoch, ap):
 
+        print(f"this is test_demo")
+        
         # Load names
         with open(self.args.code_path + '/scripts/EMAGE_2024/utils/assets/names_only.json', 'r') as f:
             names_data = json.load(f)
@@ -626,7 +635,8 @@ class BaseTrainer(object):
         bvh_pose_master = load_framewise_pose_file(bvh_path)     # shape: (F_bvh, j*3)
 
         
-        filename = os.path.splitext(os.path.basename(ap))[0]
+        # filename = os.path.splitext(os.path.basename(ap))[0]
+        filename = "result"
         
         results_save_path = self.checkpoint_path + f"{epoch}/"
         if os.path.exists(results_save_path): 
@@ -656,6 +666,7 @@ class BaseTrainer(object):
             for its, batch_data in enumerate(self.test_loader):
                 # print(its, "abc\n\n\n\n")
                 loaded_data = self._load_data(batch_data)
+                print(f"loaded_data: {loaded_data['tar_pose_face'].shape}")
                 net_out = self._g_test(loaded_data)
                 in_audio = loaded_data['in_audio']
                 tar_pose = net_out['tar_pose']
@@ -719,17 +730,17 @@ class BaseTrainer(object):
                  
                 # seq_name = test_seq_list[its].split('.')[0]  # safer filename
                 result_path = f"{results_save_path}res_{filename}.bvh"
-                with open(f"{results_save_path}result_raw_{filename}.bvh", 'w+') as f_real:
-                    for line_id in range(rec_pose.shape[0]): #,args.pre_frames, args.pose_length
-                        line_data = np.array2string(rec_pose[line_id], max_line_width=np.inf, precision=6, suppress_small=False, separator=' ')
-                        f_real.write(line_data[1:-2]+'\n')
+                # with open(f"{results_save_path}result_raw_{filename}.bvh", 'w+') as f_real:
+                #     for line_id in range(rec_pose.shape[0]): #,args.pre_frames, args.pose_length
+                #         line_data = np.array2string(rec_pose[line_id], max_line_width=np.inf, precision=6, suppress_small=False, separator=' ')
+                #         f_real.write(line_data[1:-2]+'\n')
 
                 # === Save input audio as .wav ===
-                audio_np = in_audio.squeeze().cpu().numpy()
-                audio_np = audio_np / (np.max(np.abs(audio_np)) + 1e-8)  # normalize to [-1, 1]
-                audio_int16 = (audio_np * 32767).astype(np.int16)
-                sample_rate = getattr(self.args, "audio_sample_rate", 16000)
-                wavfile.write(f"{results_save_path}in_audio_{filename}.wav", sample_rate, audio_int16)
+                # audio_np = in_audio.squeeze().cpu().numpy()
+                # audio_np = audio_np / (np.max(np.abs(audio_np)) + 1e-8)  # normalize to [-1, 1]
+                # audio_int16 = (audio_np * 32767).astype(np.int16)
+                # sample_rate = getattr(self.args, "audio_sample_rate", 16000)
+                # wavfile.write(f"{results_save_path}in_audio_{filename}.wav", sample_rate, audio_int16)
 
                 ## Save face
                 rec_exps = rec_exps.cpu().numpy().reshape(bs*n, 51)
@@ -744,40 +755,186 @@ class BaseTrainer(object):
                 save_path = f"{results_save_path}face_{filename}.json"
                 with open(save_path, 'w') as f:
                     json.dump(save_dict, f, indent=2)
-                
+
+                facial_data_dict = save_dict
+                # facial_data_str = json.dumps(save_dict, indent=2)
                         
                 del rec_pose, tar_pose, rec_trans, net_out, loaded_data, in_audio
                 torch.cuda.empty_cache()
 
-            data_tools.result2target_vis("mixamo_joint_full", results_save_path, results_save_path, test_demo, mode="all_or_lower", verbose=False)
+            # data_tools.result2target_vis("mixamo_joint_full", results_save_path, results_save_path, test_demo, mode="all_or_lower", verbose=False)
         # result = gr.Video(value=render_vid_path, visible=True)
         end_time = time.time() - start_time
         logger.info(f"total inference time: {int(end_time)} s for {int(total_length/self.args.pose_fps)} s motion")
-        return result_path
+        return result_path, facial_data_dict
 
 @logger.catch
-def emage(audio_path):
-    smplx_path = None
-    text_path = None
-    rank = 0
-    world_size = 1
-    args = config.parse_args()
+def emage(conn, addr, audio_path):
+    """Handles individual client connections with real-time inference."""
 
-    if not sys.warnoptions:
-        warnings.simplefilter("ignore")
+    global _global_inference
+    
+    print(f"Connected by {addr}")
+    try:
+        # 1. Gửi frame 0 (T-pose)
+        # time.sleep(2)
+        # with open("C:\\Users\\Duy\\Downloads\\UnityControl\\clip_17_merged.json", "r") as file:
+        #     full_list = json.load(file)
+        # frame0 = full_list[0]
+        # json_str = json.dumps([frame0])
+        # json_bytes = json_str.encode('utf-8')
+        # length_prefix = struct.pack('<I', len(json_bytes))
+        # conn.sendall(length_prefix + json_bytes)
+        # print("Sent frame 0 (T-pose) to", addr)
 
-    other_tools_hf.set_random_seed(args)
-    other_tools_hf.print_exp_info(args)
+        # 2. Chia audio ra thành chunks
+        audio_chunks, sample_rate, num_channels, sample_width = split_audio_chunks_numpy(audio_path, CHUNK_DURATION)
+        total_audio_chunks = len(audio_chunks)
+        audio_sent = 0
 
-    data, samplerate = sf.read(audio_path)
-    audio_input = (samplerate, data)
+        print(f"total_audio_chunks: {total_audio_chunks}")
+        
+        # 3. Khởi tạo trainer để inference real-time
+        smplx_path = None
+        text_path = None
+        rank = 0
+        world_size = 1
+        args = config.parse_args()
 
-    trainer = BaseTrainer(args, sp=smplx_path, ap=audio_input, tp=text_path)
-    if _global_inference == False:
-        other_tools_hf.load_checkpoints(inference_model, test_checkpoint, args.g_name)
-    result = trainer.test_demo(999, ap=audio_path)
-    return result
+        if not sys.warnoptions:
+            warnings.simplefilter("ignore")
+        other_tools_hf.set_random_seed(args)
+        other_tools_hf.print_exp_info(args)
 
+        # trainer = BaseTrainer(args, sp=smplx_path, tp=text_path)
+        
+        
+        # 4. Inference từng chunk & gửi ngay
+        for i, chunk in enumerate(audio_chunks):
+            print(f"Chunk {i} sum: {np.sum(chunk)}, first 5 samples: {chunk[:5]}")
+            audio_input = (sample_rate, chunk)
+            print(f"audio_input: {audio_input}")
+            trainer = BaseTrainer(args, sp=smplx_path, ap=audio_input, tp=text_path)
+            if not _global_inference:
+                other_tools_hf.load_checkpoints(inference_model, test_checkpoint, args.g_name)
+            print("after data load")
+            result, rec_exps = trainer.test_demo(999, ap=audio_input)
+
+            logger.info(f"Chunk {i+1}/{len(audio_chunks)} done")
+            # print(f"rec_exps: {rec_exps['frames'][-1]}")
+            frames = rec_exps['frames']
+            total_sum = np.sum([np.sum(f['weights']) for f in frames])
+            print("Chunk sum:", total_sum)
+
+            _global_inference = True
+
+            # Xử lý dữ liệu inference thành blendshape
+            # rec_exps = rec_exps.cpu().numpy().reshape(-1, 51)
+            # rec_exps = np.clip(rec_exps, 0, 1)
+            # frames = [{"weights": list(map(float, frame))} for frame in rec_exps]
+
+            # save_dict = {
+            #     "name": names,  # blendshape names
+             #     "frames": frames
+            # }
+
+            # logger.info(f"Done chunk {i+1}/{len(audio_chunks)}")
+
+            # temp_l = []
+            # blendshape_names = save_dict["name"]
+            # for frame in save_dict["frames"]:
+            #     weights = frame["weights"]
+            #     merged_weights = dict(zip(blendshape_names, weights))
+            #     blendshape = {"Newton_HeadFace": merged_weights}
+            #     blendshape = {"blendshape": blendshape}
+            #     temp_l.append(blendshape)
+
+            # # Gửi blendshape frames của chunk
+            # json_str = json.dumps(temp_l)
+            # json_bytes = json_str.encode('utf-8')
+            # length_prefix = struct.pack('<I', len(json_bytes))
+            # conn.sendall(length_prefix + json_bytes)
+            # print(f"Sent blendshape chunk {i+1}/{len(audio_chunks)} ({len(json_bytes)} bytes) to {addr}")
+
+            # # Gửi audio song song
+            # if audio_sent < total_audio_chunks:
+            #     chunk_audio = audio_chunks[audio_sent]
+            #     conn.sendall(b'AUDP')
+            #     conn.sendall(struct.pack('<III', sample_rate, num_channels, sample_width))
+            #     conn.sendall(struct.pack('<I', len(chunk_audio)))
+            #     conn.sendall(chunk_audio)
+            #     print(f"Sent audio chunk #{audio_sent+1}/{total_audio_chunks}")
+            #     audio_sent += 1
+
+            # # Delay cho real-time (30 FPS)
+            # time.sleep(len(temp_l) / 30.0)
+
+    except ConnectionResetError:
+        print(f"Client {addr} disconnected unexpectedly.")
+    except BrokenPipeError:
+        print(f"Client {addr} disconnected (broken pipe).")
+    # except Exception as e:
+        # print(f"Error handling client {addr}: {e}")
+    finally:
+        print(f"Closing connection with {addr}")
+        # conn.close()
+
+
+# unity - begin
+
+# def split_audio_chunks(path, chunk_duration_sec):
+#     with wave.open(path, 'rb') as wav:
+#         frame_rate = wav.getframerate()
+#         num_channels = wav.getnchannels()
+#         sample_width = wav.getsampwidth()
+#         total_frames = wav.getnframes()
+
+#         frames_per_chunk = int(frame_rate * chunk_duration_sec)
+#         num_chunks = total_frames // frames_per_chunk
+
+#         audio_chunks = []
+#         for i in range(num_chunks):
+#             wav.setpos(i * frames_per_chunk)
+#             chunk = wav.readframes(frames_per_chunk)
+#             audio_chunks.append(chunk)
+
+#     return audio_chunks, frame_rate, num_channels, sample_width
+
+def split_audio_chunks_numpy(path, chunk_duration_sec):
+    # Lấy metadata bằng wave
+    with wave.open(path, 'rb') as wav:
+        num_channels = wav.getnchannels()
+        sample_width = wav.getsampwidth()
+
+    # Đọc dữ liệu bằng soundfile
+    data, samplerate = sf.read(path, dtype='float32')  # data: np.ndarray
+    total_samples = len(data)
+    samples_per_chunk = int(samplerate * chunk_duration_sec)
+
+    chunks = []
+    for start in range(0, total_samples, samples_per_chunk):
+        end = min(start + samples_per_chunk, total_samples)
+        chunk_data = data[start:end]
+        chunks.append(chunk_data)
+
+    return chunks, samplerate, num_channels, sample_width
+
+
+def start_server():
+    """Starts the TCP socket server."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((HOST, PORT))
+        s.listen() # Listen for incoming connections
+        print(f"Server listening on {HOST}:{PORT}")
+
+        while True:
+            conn, addr = s.accept() # Accept a new connection
+            # Start a new thread to handle the client
+            client_thread = threading.Thread(target=client_handler, args=(conn, addr))
+            client_thread.start()
+            print(f"Active connections: {threading.active_count() - 1}")
+
+# unity - end
             
 if __name__ == "__main__":
 
@@ -794,7 +951,8 @@ if __name__ == "__main__":
             print(f"Error'{audio_path}' no exist")
             sys.exit(1)
 
-        output_file = emage(audio_path)
-        print(f"\nFinished. Result path: {output_file}\n")
+        # output_file = emage(audio_path)
+        emage(conn='conn', addr='addr',audio_path=audio_path)
+        # print(f"\nFinished. Result path: {output_file}\n")
         _global_inference = True
 

@@ -127,29 +127,30 @@ class BaseTrainer(object):
         # face model
         self.args.vae_test_dim = 51
         self.vq_model_face = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-        other_tools.load_checkpoints(self.vq_model_face, "/data/nas07/PersonalData/thoai/beat_vicon_hips/pretrained/mixamo/face/last_699.bin", args.e_name)
+        other_tools.load_checkpoints(self.vq_model_face, "/home/caocongdanh/Lab/mixamo_v2/pretrained/mixamo/face/last_699.bin", args.e_name)
+        # /home/caocongdanh/Lab/mixamo_v2/pretrained/mixamo/face
 
         # upper model
         self.args.vae_test_dim = 66
         self.vq_model_upper = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-        other_tools.load_checkpoints(self.vq_model_upper, "/data/nas07/PersonalData/thoai/beat_vicon_hips/pretrained/mixamo/upper/last_799.bin", args.e_name)
+        other_tools.load_checkpoints(self.vq_model_upper, "/home/caocongdanh/Lab/mixamo_v2/pretrained/mixamo/upper/last_799.bin", args.e_name)
 
         # hand model
         self.args.vae_test_dim = 192
         self.vq_model_hands = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-        other_tools.load_checkpoints(self.vq_model_hands, "/data/nas07/PersonalData/thoai/beat_vicon_hips/pretrained/mixamo/hands/last_795.bin", args.e_name)
+        other_tools.load_checkpoints(self.vq_model_hands, "/home/caocongdanh/Lab/mixamo_v2/pretrained/mixamo/hands/last_795.bin", args.e_name)
 
         # lower model
         self.args.vae_test_dim = 59
         self.args.vae_layer = 4
         self.vq_model_lower = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
-        other_tools.load_checkpoints(self.vq_model_lower, "/data/nas07/PersonalData/thoai/beat_vicon_hips/pretrained/mixamo/lowerfoot/last_486.bin", args.e_name)
+        other_tools.load_checkpoints(self.vq_model_lower, "/home/caocongdanh/Lab/mixamo_v2/pretrained/mixamo/lowerfoot/last_486.bin", args.e_name)
 
         # global motion
         self.args.vae_test_dim = 59
         self.args.vae_layer = 4
         self.global_motion = getattr(vq_model_module, "VAEConvZero")(self.args).to(self.rank)
-        other_tools.load_checkpoints(self.global_motion, "/data/nas07/PersonalData/thoai/beat_vicon_hips/pretrained/mixamo/lowerfoot/last_486.bin", args.e_name)
+        other_tools.load_checkpoints(self.global_motion, "/home/caocongdanh/Lab/mixamo_v2/pretrained/mixamo/lowerfoot/last_486.bin", args.e_name)
         
         self.args.vae_test_dim = 312
         self.args.vae_layer = 4

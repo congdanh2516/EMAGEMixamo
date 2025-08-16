@@ -345,7 +345,7 @@ class BaseTrainer(object):
             "tar_contact": tar_contact,
         }
     
-    def _g_test(self, loaded_data):
+    def _g_test(self, loaded_data, names, bvh_pose_master):
         mode = 'test'
         bs, n, j = loaded_data["tar_pose"].shape[0], loaded_data["tar_pose"].shape[1], _joints 
         tar_pose = loaded_data["tar_pose"]
@@ -402,13 +402,24 @@ class BaseTrainer(object):
         remain = (n - self.args.pre_frames) % (self.args.pose_length - self.args.pre_frames)
         round_l = self.args.pose_length - self.args.pre_frames
 
-        # print(f"roundt: {roundt}")
+        chunk_duration = round_l / self.args.pose_fps
+        print(f"chunk_duration: {chunk_duration}") # 2.0s
 
+        print(f"roundt: {roundt}")
+        all_face = {
+            'name': names,
+            'frames': []
+        }
+
+        latent_last = None
         for i in range(0, roundt):
+            total_length = 0
             # in_word_tmp = in_word[:, i*(round_l):(i+1)*(round_l)+self.args.pre_frames]
             # audio fps is 16000 and pose fps is 30
             in_audio_tmp = in_audio[:, i*(16000//30*round_l):(i+1)*(16000//30*round_l)+16000//30*self.args.pre_frames]
             in_id_tmp = loaded_data['tar_id'][:, i*(round_l):(i+1)*(round_l)+self.args.pre_frames]
+
+            
             mask_val = torch.ones(bs, self.args.pose_length, self.args.pose_dims+3+2).float().cuda()
             mask_val[:, :self.args.pre_frames, :] = 0.0
             if i == 0:
@@ -417,7 +428,14 @@ class BaseTrainer(object):
                 latent_all_tmp = latent_all[:, i*(round_l):(i+1)*(round_l)+self.args.pre_frames, :]
                 # print(latent_all_tmp.shape, latent_last.shape)
                 latent_all_tmp[:, :self.args.pre_frames, :] = latent_last[:, -self.args.pre_frames:, :]
-            
+
+            # start = i * round_l
+            # end = start + self.args.pose_length  # pose_length = round_l + pre_frames
+            # latent_all_tmp = latent_all[:, start:end, :]
+            # if latent_last is not None:
+            #     latent_all_tmp[:, :self.args.pre_frames, :] = latent_last[:, -self.args.pre_frames:, :]
+
+                    
             net_out_val = inference_model(
                 in_audio = in_audio_tmp,
                 in_word=None, #in_word_tmp,
@@ -457,16 +475,16 @@ class BaseTrainer(object):
                 _, rec_index_face, _, _ = _vq_model_face.quantizer(net_out_val["rec_face"])
                 #rec_face = _vq_model_face.decoder(rec_index_face)
 
+
+            # rec_index_all_face.append(rec_index_face)
+            # rec_index_all_upper.append(rec_index_upper)
+            # rec_index_all_lower.append(rec_index_lower)
+            # rec_index_all_hands.append(rec_index_hands)
             if i == 0:
-                rec_index_all_face.append(rec_index_face)
-                rec_index_all_upper.append(rec_index_upper)
-                rec_index_all_lower.append(rec_index_lower)
-                rec_index_all_hands.append(rec_index_hands)
+                rec_index_face = rec_index_face  # chunk đầu giữ nguyên
             else:
-                rec_index_all_face.append(rec_index_face[:, self.args.pre_frames:])
-                rec_index_all_upper.append(rec_index_upper[:, self.args.pre_frames:])
-                rec_index_all_lower.append(rec_index_lower[:, self.args.pre_frames:])
-                rec_index_all_hands.append(rec_index_hands[:, self.args.pre_frames:])
+                rec_index_face = rec_index_face[:, self.args.pre_frames:]  # bỏ frame trùng
+
 
             if self.args.cu != 0:
                 rec_upper_last = _vq_model_upper.decode(rec_index_upper)
@@ -480,10 +498,12 @@ class BaseTrainer(object):
                 rec_hands_last = _vq_model_hands.decode(rec_index_hands)
             else:
                 rec_hands_last = _vq_model_hands.decoder(rec_index_hands)
-            # if self.args.cf != 0:
-            #     rec_face_last = _vq_model_face.decode(rec_index_face)
-            # else:
-            #     rec_face_last = _vq_model_face.decoder(rec_index_face)
+            if self.args.cf != 0:
+                rec_face = _vq_model_face.decode(rec_index_face)
+            else:
+                rec_face = _vq_model_face.decoder(rec_index_face)
+
+            # print(f"CHUNK: {i}, {rec_face[0]}")
 
             
             rec_lower_last = torch.zeros_like(rec_lower_last) # nl
@@ -507,6 +527,7 @@ class BaseTrainer(object):
             rec_pose_hands_recover = self.inverse_selection_tensor(rec_pose_hands, _joint_mask_hands, bs*n)
             
             rec_pose = rec_pose_upper_recover + rec_pose_lower_recover + rec_pose_hands_recover 
+            
             rec_pose = rc.axis_angle_to_matrix(rec_pose.reshape(bs, n, j, 3))
             rec_pose = rc.matrix_to_rotation_6d(rec_pose).reshape(bs, n, j*6)
             rec_trans_v_s = rec_lower_last[:, :, 54:57]
@@ -514,105 +535,94 @@ class BaseTrainer(object):
             # rec_z_trans = other_tools.velocity2position(rec_trans_v_s[:, :, 2:3], 1/self.args.pose_fps, tar_trans[:, 0, 2:3])
             # rec_y_trans = rec_trans_v_s[:,:,0:1]
             # rec_trans = torch.cat([rec_x_trans, rec_y_trans, rec_z_trans], dim=-1)
-            rec_trans = torch.zeros_like(rec_trans_v_s) # nl
-            print(f"rec_trans for: {rec_trans.shape}")
-            latent_last = torch.cat([rec_pose, rec_trans, rec_lower_last[:, :, 57:59]], dim=-1)
+            rec_trans = torch.zeros_like(rec_trans_v_s) # 
+            # rec_trans = rec_lower_last[:, :, 54:57] 
+            latent_last = torch.cat([rec_pose, rec_trans, rec_lower_last[:, :, 57:59]], dim=-1) 
 
-            # rec_exps = rec_face_last # face
+            # new 
+            rec_exps = rec_face # face
             # rec_exps = rec_exps.cpu().numpy().reshape(bs*n, 51)
-            # rec_exps = np.clip(rec_exps, 0, 1) # Clip the values to range of 0-1
-            # frames = [{"weights": list(map(float, frame))} for frame in rec_exps]
+            rec_exps = rec_exps.cpu().numpy().reshape(-1, 51)
+            rec_exps = np.clip(rec_exps, 0, 1) # Clip the values to range of 0-1
+            frames = [{"weights": list(map(float, frame))} for frame in rec_exps]
         
-            # save_dict = {
-            #     "frames": frames
-            # }
+            save_dict = {
+                "name": names,
+                "frames": frames
+            }
 
-            # with open("/home/caocongdanh/rec_face_last.json", "w") as f:
-            #     json.dump(save_dict, f)
-            # line522
+            all_face['frames'].append(frames)
 
-        rec_index_face = torch.cat(rec_index_all_face, dim=1)
-        rec_index_upper = torch.cat(rec_index_all_upper, dim=1)
-        rec_index_lower = torch.cat(rec_index_all_lower, dim=1)
-        rec_index_hands = torch.cat(rec_index_all_hands, dim=1)
-        
-        if self.args.cu != 0:
-            rec_upper = _vq_model_upper.decode(rec_index_upper)
-        else:
-            rec_upper = _vq_model_upper.decoder(rec_index_upper)
-        if self.args.cl != 0:
-            rec_lower = _vq_model_lower.decode(rec_index_lower)
-        else:
-            rec_lower = _vq_model_lower.decoder(rec_index_lower)
-        if self.args.ch != 0:
-            rec_hands = _vq_model_hands.decode(rec_index_hands)
-        else:
-            rec_hands = _vq_model_hands.decoder(rec_index_hands)
-        if self.args.cf != 0:
-            rec_face = _vq_model_face.decode(rec_index_face)
-        else:
-            rec_face = _vq_model_face.decoder(rec_index_face)
+            facial_data = save_dict
 
-        rec_exps = rec_face
-        rec_pose_legs = rec_lower[:, :, :54]
-        bs, n = rec_pose_legs.shape[0], rec_pose_legs.shape[1]
-        
-        rec_pose_upper = rec_upper.reshape(bs, n, 11, 6)
-        rec_pose_upper = rc.rotation_6d_to_matrix(rec_pose_upper)#
-        rec_pose_upper = rc.matrix_to_axis_angle(rec_pose_upper).reshape(bs*n, 11*3)
-        rec_pose_upper_recover = self.inverse_selection_tensor(rec_pose_upper, _joint_mask_upper, bs*n)
-        
-        rec_pose_lower = rec_pose_legs.reshape(bs, n, 9, 6)
-        rec_pose_lower = torch.zeros_like(rec_pose_lower) # nl
-        rec_pose_lower = rc.rotation_6d_to_matrix(rec_pose_lower)
-        rec_lower2global = rc.matrix_to_rotation_6d(rec_pose_lower.clone()).reshape(bs, n, 9*6)
-        rec_pose_lower = rc.matrix_to_axis_angle(rec_pose_lower).reshape(bs*n, 9*3)
-        rec_pose_lower_recover = self.inverse_selection_tensor(rec_pose_lower, _joint_mask_lower, bs*n)
-        rec_pose_lower_recover = torch.zeros_like(rec_pose_lower_recover)
-        
-        rec_pose_hands = rec_hands.reshape(bs, n, 32, 6)
-        rec_pose_hands = rc.rotation_6d_to_matrix(rec_pose_hands)
-        rec_pose_hands = rc.matrix_to_axis_angle(rec_pose_hands).reshape(bs*n, 32*3)
-        rec_pose_hands_recover = self.inverse_selection_tensor(rec_pose_hands, _joint_mask_hands, bs*n)
-        
-        # rec_pose_jaw = rec_pose_jaw.reshape(bs*n, 6)
-        # rec_pose_jaw = rc.rotation_6d_to_matrix(rec_pose_jaw)
-        # rec_pose_jaw = rc.matrix_to_axis_angle(rec_pose_jaw).reshape(bs*n, 1*3)
-        # rec_pose = rec_pose_upper_recover + rec_pose_lower_recover + rec_pose_hands_recover 
-        # rec_pose[:, 66:69] = rec_pose_jaw
-        rec_pose = rec_pose_upper_recover + rec_pose_lower_recover + rec_pose_hands_recover 
+            frames = facial_data['frames']
+            total_sum = np.sum([np.sum(f['weights']) for f in frames])
+            print(f"Chunk {i}/{roundt} start.")
+            print("Facial data sum:", total_sum)
 
-        to_global = rec_lower
-        to_global[:, :, 54:57] = 0.0
-        to_global[:, :, :54] = rec_lower2global
-        rec_global = _global_motion(to_global)
+            # bvh
+            bs, n, j = rec_pose.shape[0], rec_pose.shape[1], _joints # ???????
 
-        rec_trans_v_s = rec_global["rec_pose"][:, :, 54:57]
-        # rec_x_trans = other_tools.velocity2position(rec_trans_v_s[:, :, 1:2], 1/self.args.pose_fps, tar_trans[:, 0, 1:2])
-        # rec_z_trans = other_tools.velocity2position(rec_trans_v_s[:, :, 2:3], 1/self.args.pose_fps, tar_trans[:, 0, 2:3])
-        # rec_y_trans = rec_trans_v_s[:,:,0:1]
-        # rec_trans = torch.cat([rec_x_trans, rec_y_trans, rec_z_trans], dim=-1)
-        rec_trans = torch.zeros_like(rec_trans_v_s)
-        print(f"rec_trans: {rec_trans.shape}")
-        tar_pose = tar_pose[:, :n, :]
-        tar_exps = tar_exps[:, :n, :]
-        tar_trans = tar_trans[:, :n, :]
-        # tar_beta = tar_beta[:, :n, :]
+            rec_pose = rc.rotation_6d_to_matrix(rec_pose.reshape(bs*n, j, 6))
+            rec_pose = rc.matrix_to_euler_angles(rec_pose, "YXZ").reshape(bs, n, j, 3) 
 
-        rec_pose = rc.axis_angle_to_matrix(rec_pose.reshape(bs*n, j, 3))
-        rec_pose = rc.matrix_to_rotation_6d(rec_pose).reshape(bs, n, j*6)
-        tar_pose = rc.axis_angle_to_matrix(tar_pose.reshape(bs*n, j, 3))
-        tar_pose = rc.matrix_to_rotation_6d(tar_pose).reshape(bs, n, j*6)
+            rec_pose = np.rad2deg(rec_pose.cpu().numpy())
+
+            rec_pose = fix_abnormal_joint_motion_soft(
+                rec_pose,
+                joint_idx=27, ## Joint thứ 28(RArm1 là joint 27 trong 0-base
+                fps=30.0,
+                abnormal_threshold_deg_per_s=600.0,
+                blend_factor=0.2  # tweak to control how much smoothing
+            )
+
+            rec_pose = rec_pose.reshape(bs*n, j*3)
+            trans = torch.zeros_like(rec_trans)
+            trans= rec_trans.reshape(bs*n, 3).cpu().numpy()
+
+            bvh_pose = bvh_pose_master
+
+            if bvh_pose.shape[0] < rec_pose.shape[0]:
+                # Repeat rows (tile) until we have at least as many frames as rec_pose
+                repeats = -(-rec_pose.shape[0] // bvh_pose.shape[0])  # ceiling division
+                bvh_pose = np.tile(bvh_pose, (repeats, 1))
+            
+            # Trim to exact length
+            bvh_pose = bvh_pose[:rec_pose.shape[0], :]
+            use_frames = rec_pose.shape[0]  
+            
+            # --- 1) rec_trans <- first 3 values of the BVH per frame ---
+            trans[:use_frames, :] = bvh_pose[:use_frames, 0:3]
+            
+            # --- 2) Last 8 joints of rec_pose <- BVH's last 8*3 values (last 24 channels) ---
+            rec_pose[:use_frames, -24:] = bvh_pose[:use_frames, -24:]
+            
+            # --- 3) rec_pose[:, 3:6] <- BVH[:, 3:6] ---
+            rec_pose[:use_frames, 3:6] = bvh_pose[:use_frames, 3:6]
+            
+            # Concatenate translation + pose channels for saving
+            trans = trans
+            rec_pose = np.concatenate([trans, rec_pose], axis=1)  # (frames, 3 + j*3)
+            
+            total_length += n
+
+            print(f"rec_pose: {rec_pose.shape}")
+
+        with open("/home/caocongdanh/all_face_v2.json", "w") as f:
+            json.dump(all_face, f)
+            
         
-        return {
-            'rec_pose': rec_pose,
-            'rec_trans': rec_trans,
-            'tar_pose': tar_pose,
-            'tar_exps': tar_exps,
-            # 'tar_beta': tar_beta,
-            'tar_trans': tar_trans,
-            'rec_exps': rec_exps,
-        }
+        # tar_pose and rec_pose are the same shape ??
+        
+        # return {
+        #     'rec_pose': rec_pose,
+        #     'rec_trans': rec_trans,
+        #     # 'tar_pose': tar_pose,
+        #     # 'tar_exps': tar_exps,
+        #     # 'tar_beta': tar_beta,
+        #     # 'tar_trans': tar_trans,
+        #     'rec_exps': rec_exps,
+        # }
 
 
     def test_demo(self, epoch, ap):
@@ -656,104 +666,104 @@ class BaseTrainer(object):
             for its, batch_data in enumerate(self.test_loader):
                 # print(its, "abc\n\n\n\n")
                 loaded_data = self._load_data(batch_data)
-                net_out = self._g_test(loaded_data)
-                in_audio = loaded_data['in_audio']
-                tar_pose = net_out['tar_pose']
-                rec_pose = net_out['rec_pose']
-                tar_exps = net_out['tar_exps']
-                # tar_beta = net_out['tar_beta']
-                rec_trans = net_out['rec_trans']
-                tar_trans = net_out['tar_trans']
-                rec_exps = net_out['rec_exps']
-                # print(rec_pose.shape, tar_pose.shape)
-                bs, n, j = tar_pose.shape[0], tar_pose.shape[1], _joints
+                net_out = self._g_test(loaded_data, names, bvh_pose_master)
+        #         in_audio = loaded_data['in_audio']
+        #         tar_pose = net_out['tar_pose']
+        #         rec_pose = net_out['rec_pose']
+        #         tar_exps = net_out['tar_exps']
+        #         # tar_beta = net_out['tar_beta']
+        #         rec_trans = net_out['rec_trans']
+        #         tar_trans = net_out['tar_trans']
+        #         rec_exps = net_out['rec_exps']
+        #         # print(rec_pose.shape, tar_pose.shape)
+        #         bs, n, j = tar_pose.shape[0], tar_pose.shape[1], _joints
 
-                rec_pose = rc.rotation_6d_to_matrix(rec_pose.reshape(bs*n, j, 6))
-                # rec_pose = rc.matrix_to_euler_angles(rec_pose, "YXZ").reshape(bs*n, j*3)
-                rec_pose = rc.matrix_to_euler_angles(rec_pose, "YXZ").reshape(bs, n, j, 3) 
+        #         rec_pose = rc.rotation_6d_to_matrix(rec_pose.reshape(bs*n, j, 6))
+        #         # rec_pose = rc.matrix_to_euler_angles(rec_pose, "YXZ").reshape(bs*n, j*3)
+        #         rec_pose = rc.matrix_to_euler_angles(rec_pose, "YXZ").reshape(bs, n, j, 3) 
 
-                rec_pose = np.rad2deg(rec_pose.cpu().numpy())
+        #         rec_pose = np.rad2deg(rec_pose.cpu().numpy())
 
-                ###------------Fix abnormal motion-----------------##
-                # rec_pose is (bs, n, j, 3) in degrees
-                rec_pose = fix_abnormal_joint_motion_soft(
-                    rec_pose,
-                    joint_idx=27, ## Joint thứ 28(RArm1 là joint 27 trong 0-base
-                    fps=30.0,
-                    abnormal_threshold_deg_per_s=600.0,
-                    blend_factor=0.2  # tweak to control how much smoothing
-                )
-                ###------------Fix abnormal motion-----------------##
+        #         ###------------Fix abnormal motion-----------------##
+        #         # rec_pose is (bs, n, j, 3) in degrees
+        #         rec_pose = fix_abnormal_joint_motion_soft(
+        #             rec_pose,
+        #             joint_idx=27, ## Joint thứ 28(RArm1 là joint 27 trong 0-base
+        #             fps=30.0,
+        #             abnormal_threshold_deg_per_s=600.0,
+        #             blend_factor=0.2  # tweak to control how much smoothing
+        #         )
+        #         ###------------Fix abnormal motion-----------------##
             
-                rec_pose = rec_pose.reshape(bs*n, j*3)
-                trans = torch.zeros_like(rec_trans)
-                trans= rec_trans.reshape(bs*n, 3).cpu().numpy()
+        #         rec_pose = rec_pose.reshape(bs*n, j*3)
+        #         trans = torch.zeros_like(rec_trans)
+        #         trans= rec_trans.reshape(bs*n, 3).cpu().numpy()
 
-                # --- Make a working copy of BVH pose and repeat/trim to match current length ---
-                bvh_pose = bvh_pose_master  # (F_bvh, j*3)
+        #         # --- Make a working copy of BVH pose and repeat/trim to match current length ---
+        #         bvh_pose = bvh_pose_master  # (F_bvh, j*3)
 
                 
-                if bvh_pose.shape[0] < rec_pose.shape[0]:
-                    # Repeat rows (tile) until we have at least as many frames as rec_pose
-                    repeats = -(-rec_pose.shape[0] // bvh_pose.shape[0])  # ceiling division
-                    bvh_pose = np.tile(bvh_pose, (repeats, 1))
+        #         if bvh_pose.shape[0] < rec_pose.shape[0]:
+        #             # Repeat rows (tile) until we have at least as many frames as rec_pose
+        #             repeats = -(-rec_pose.shape[0] // bvh_pose.shape[0])  # ceiling division
+        #             bvh_pose = np.tile(bvh_pose, (repeats, 1))
                 
-                # Trim to exact length
-                bvh_pose = bvh_pose[:rec_pose.shape[0], :]
-                use_frames = rec_pose.shape[0]  
+        #         # Trim to exact length
+        #         bvh_pose = bvh_pose[:rec_pose.shape[0], :]
+        #         use_frames = rec_pose.shape[0]  
                 
-                # --- 1) rec_trans <- first 3 values of the BVH per frame ---
-                trans[:use_frames, :] = bvh_pose[:use_frames, 0:3]
+        #         # --- 1) rec_trans <- first 3 values of the BVH per frame ---
+        #         trans[:use_frames, :] = bvh_pose[:use_frames, 0:3]
                 
-                # --- 2) Last 8 joints of rec_pose <- BVH's last 8*3 values (last 24 channels) ---
-                rec_pose[:use_frames, -24:] = bvh_pose[:use_frames, -24:]
+        #         # --- 2) Last 8 joints of rec_pose <- BVH's last 8*3 values (last 24 channels) ---
+        #         rec_pose[:use_frames, -24:] = bvh_pose[:use_frames, -24:]
                 
-                # --- 3) rec_pose[:, 3:6] <- BVH[:, 3:6] ---
-                rec_pose[:use_frames, 3:6] = bvh_pose[:use_frames, 3:6]
+        #         # --- 3) rec_pose[:, 3:6] <- BVH[:, 3:6] ---
+        #         rec_pose[:use_frames, 3:6] = bvh_pose[:use_frames, 3:6]
                 
-                # Concatenate translation + pose channels for saving
-                trans = trans
-                rec_pose = np.concatenate([trans, rec_pose], axis=1)  # (frames, 3 + j*3)
+        #         # Concatenate translation + pose channels for saving
+        #         trans = trans
+        #         rec_pose = np.concatenate([trans, rec_pose], axis=1)  # (frames, 3 + j*3)
                 
-                total_length += n
+        #         total_length += n
                  
-                # seq_name = test_seq_list[its].split('.')[0]  # safer filename
-                result_path = f"{results_save_path}res_{filename}.bvh"
-                with open(f"{results_save_path}result_raw_{filename}.bvh", 'w+') as f_real:
-                    for line_id in range(rec_pose.shape[0]): #,args.pre_frames, args.pose_length
-                        line_data = np.array2string(rec_pose[line_id], max_line_width=np.inf, precision=6, suppress_small=False, separator=' ')
-                        f_real.write(line_data[1:-2]+'\n')
+        #         # seq_name = test_seq_list[its].split('.')[0]  # safer filename
+        #         result_path = f"{results_save_path}res_{filename}.bvh"
+        #         with open(f"{results_save_path}result_raw_{filename}.bvh", 'w+') as f_real:
+        #             for line_id in range(rec_pose.shape[0]): #,args.pre_frames, args.pose_length
+        #                 line_data = np.array2string(rec_pose[line_id], max_line_width=np.inf, precision=6, suppress_small=False, separator=' ')
+        #                 f_real.write(line_data[1:-2]+'\n')
 
-                # === Save input audio as .wav ===
-                audio_np = in_audio.squeeze().cpu().numpy()
-                audio_np = audio_np / (np.max(np.abs(audio_np)) + 1e-8)  # normalize to [-1, 1]
-                audio_int16 = (audio_np * 32767).astype(np.int16)
-                sample_rate = getattr(self.args, "audio_sample_rate", 16000)
-                wavfile.write(f"{results_save_path}in_audio_{filename}.wav", sample_rate, audio_int16)
+        #         # === Save input audio as .wav ===
+        #         audio_np = in_audio.squeeze().cpu().numpy()
+        #         audio_np = audio_np / (np.max(np.abs(audio_np)) + 1e-8)  # normalize to [-1, 1]
+        #         audio_int16 = (audio_np * 32767).astype(np.int16)
+        #         sample_rate = getattr(self.args, "audio_sample_rate", 16000)
+        #         wavfile.write(f"{results_save_path}in_audio_{filename}.wav", sample_rate, audio_int16)
 
-                ## Save face
-                rec_exps = rec_exps.cpu().numpy().reshape(bs*n, 51)
-                rec_exps = np.clip(rec_exps, 0, 1) # Clip the values to range of 0-1
-                frames = [{"weights": list(map(float, frame))} for frame in rec_exps]
+        #         ## Save face
+        #         rec_exps = rec_exps.cpu().numpy().reshape(bs*n, 51)
+        #         rec_exps = np.clip(rec_exps, 0, 1) # Clip the values to range of 0-1
+        #         frames = [{"weights": list(map(float, frame))} for frame in rec_exps]
             
-                save_dict = {
-                    "name": names,
-                    "frames": frames
-                }
+        #         save_dict = {
+        #             "name": names,
+        #             "frames": frames
+        #         }
             
-                save_path = f"{results_save_path}face_{filename}.json"
-                with open(save_path, 'w') as f:
-                    json.dump(save_dict, f, indent=2)
+        #         save_path = f"{results_save_path}face_{filename}.json"
+        #         with open(save_path, 'w') as f:
+        #             json.dump(save_dict, f, indent=2)
                 
                         
-                del rec_pose, tar_pose, rec_trans, net_out, loaded_data, in_audio
-                torch.cuda.empty_cache()
+        #         del rec_pose, tar_pose, rec_trans, net_out, loaded_data, in_audio
+        #         torch.cuda.empty_cache()
 
-            data_tools.result2target_vis("mixamo_joint_full", results_save_path, results_save_path, test_demo, mode="all_or_lower", verbose=False)
-        # result = gr.Video(value=render_vid_path, visible=True)
-        end_time = time.time() - start_time
-        logger.info(f"total inference time: {int(end_time)} s for {int(total_length/self.args.pose_fps)} s motion")
-        return result_path
+        #     data_tools.result2target_vis("mixamo_joint_full", results_save_path, results_save_path, test_demo, mode="all_or_lower", verbose=False)
+        # # result = gr.Video(value=render_vid_path, visible=True)
+        # end_time = time.time() - start_time
+        # logger.info(f"total inference time: {int(end_time)} s for {int(total_length/self.args.pose_fps)} s motion")
+        # return result_path
 
 @logger.catch
 def emage(audio_path):

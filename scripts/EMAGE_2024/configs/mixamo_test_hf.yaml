@@ -19,7 +19,7 @@ data_path: ./EMAGE/test_sequences/
 eval_model: motion_representation
 e_name: VAESKConv
 # test_ckpt: ./EMAGE/emage_audio_175.bin
-test_ckpt: /home/caocongdanh/Lab/mixamo_v2/pretrained/mixamo/globaltrans_579.bin
+test_ckpt: /home/caocongdanh/Lab/mixamo_v2/pretrained/mixamo/last_9.bin
 data_path_1: ./EMAGE/
 vae_test_len: 32
 vae_test_dim: 312
@@ -35,7 +35,7 @@ variational: False
 additional_data: False
 cache_path: all_pose/
 dataset: mixamo_testonly_hf
-new_cache: False
+new_cache: True
 
 # motion config
 ori_joints: mixamo_joint_full
