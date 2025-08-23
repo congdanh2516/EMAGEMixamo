@@ -37,6 +37,8 @@ import json
 import sounddevice as sd
 import queue
 
+device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
+
 _global_inference = False
 inference_model = None
 
@@ -132,7 +134,21 @@ class BaseTrainer(object):
         # print(f"args.out_path: {args.out_path}")
         if not os.path.exists(args.out_path + "custom/" + hf_dir + "/"):
             os.makedirs(args.out_path + "custom/" + hf_dir + "/")
-        sf.write(args.out_path + "custom/" + hf_dir + "/tmp.wav", ap[1], ap[0])
+        # sf.write(args.out_path + "custom/" + hf_dir + "/tmp.wav", ap[1], ap[0])
+        print(f"ap: {ap}")
+        audio_data = ap[1]
+        if isinstance(audio_data, torch.Tensor):
+            audio_data = audio_data.detach().cpu().numpy()
+        audio_np = audio_data.squeeze()
+        print(f"audio_data: {audio_data}, {audio_np.shape}")
+        print(f"ap[0]: {ap[0]}")
+        sf.write(
+            args.out_path + "custom/" + hf_dir + "/tmp.wav",
+            audio_np,
+            ap[0]  # sample rate
+        )
+
+
         self.audio_path = args.out_path + "custom/" + hf_dir + "/tmp.wav"
         audio, ssr = librosa.load(self.audio_path)
         ap = (ssr, audio)
@@ -157,19 +173,21 @@ class BaseTrainer(object):
             model_module = __import__(f"models.{args.model}", fromlist=["something"])
             
             if args.ddp:
-                inference_model = getattr(model_module, args.g_name)(args).to(self.rank)
+                inference_model = getattr(model_module, args.g_name)(args).to(device)
                 process_group = torch.distributed.new_group()
                 inference_model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(inference_model, process_group)   
                 inference_model = DDP(inference_model, device_ids=[self.rank], output_device=self.rank,
                                  broadcast_buffers=False, find_unused_parameters=False)
             else: 
-                inference_model = torch.nn.DataParallel(getattr(model_module, args.g_name)(args), args.gpus).cuda()
+                # inference_model = torch.nn.DataParallel(getattr(model_module, args.g_name)(args), args.gpus).to(device)
+                device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
+                inference_model = getattr(model_module, args.g_name)(args).to(device)
             
             if self.rank == 0:
                 logger.info(f"init {args.g_name} success")
 
             self.args = args
-            _joints = self.test_data.joints
+            # _joints = self.test_data.joints
             self.ori_joint_list = joints_list[self.args.ori_joints]
             self.tar_joint_list_face = joints_list["mixamo_face"]
             self.tar_joint_list_upper = joints_list["mixamo_upper"]
@@ -202,31 +220,31 @@ class BaseTrainer(object):
             
             # face model
             self.args.vae_test_dim = 51
-            _vq_model_face = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
+            _vq_model_face = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(device)
             other_tools.load_checkpoints(_vq_model_face, pretrained_dir + "/face/face_785.bin", args.e_name)
             # Lab/mixamo_v2/pretrained/mixamo/face/last_699.bin
             # self.args.code_path + "/pretrained/mixamo/face/last_699.bin"
     
             # upper model
             self.args.vae_test_dim = 66
-            _vq_model_upper = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
+            _vq_model_upper = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(device)
             other_tools.load_checkpoints(_vq_model_upper,  pretrained_dir + "/upper/upper_1041.bin", args.e_name)
     
             # hand model
             self.args.vae_test_dim = 192
-            _vq_model_hands = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
+            _vq_model_hands = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(device)
             other_tools.load_checkpoints(_vq_model_hands,  pretrained_dir + "/hands/hands_795.bin", args.e_name)
     
             # lower model
             self.args.vae_test_dim = 59
             self.args.vae_layer = 4
-            _vq_model_lower = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(self.rank)
+            _vq_model_lower = getattr(vq_model_module, "VQVAEConvZero")(self.args).to(device)
             other_tools.load_checkpoints(_vq_model_lower,  pretrained_dir + "/lowerfoot/lowerfoot_619.bin", args.e_name)
     
             # global motion
             self.args.vae_test_dim = 59
             self.args.vae_layer = 4
-            _global_motion = getattr(vq_model_module, "VAEConvZero")(self.args).to(self.rank)
+            _global_motion = getattr(vq_model_module, "VAEConvZero")(self.args).to(device)
             other_tools.load_checkpoints(_global_motion,  pretrained_dir + "/lowerfoot/lowerfoot_619.bin", args.e_name)
             
             self.args.vae_test_dim = 312
@@ -241,7 +259,7 @@ class BaseTrainer(object):
             _vq_model_lower.eval()
             _global_motion.eval()
 
-            _log_softmax = nn.LogSoftmax(dim=2).to(self.rank)
+            _log_softmax = nn.LogSoftmax(dim=2).to(device)
 
     
     def inverse_selection(self, filtered_t, selection_array, n):
@@ -252,8 +270,9 @@ class BaseTrainer(object):
         return original_shape_t
     
     def inverse_selection_tensor(self, filtered_t, selection_array, n):
-        selection_array = torch.from_numpy(selection_array).cuda()
-        original_shape_t = torch.zeros((n, 156)).cuda() # Số joint nhân 3
+        # selection_array = torch.from_numpy(selection_array).to(device)
+        selection_array = torch.from_numpy(selection_array.astype('float32')).to(device)
+        original_shape_t = torch.zeros((n, 156)).to(device) # Số joint nhân 3
         selected_indices = torch.where(selection_array == 1)[0]
         for i in range(n):
             original_shape_t[i, selected_indices] = filtered_t[i]
@@ -261,20 +280,16 @@ class BaseTrainer(object):
     
     def _load_data(self, dict_data):
         tar_pose_raw = dict_data["pose"]
-        # print(f"tar_pose_raw: {tar_pose_raw.shape}")
-        # print(f"tar_pose_raw: {tar_pose_raw}, {tar_pose_raw.shape}")
-        tar_pose = tar_pose_raw[:, :, :156].to(self.rank)
-        # print(f"tar_pose: {tar_pose.shape}")
-        # print(f"_joint_mask_hands: len(_joint_mask_hands)")
-        tar_contact = tar_pose_raw[:, :, 156:156+2].to(self.rank)
+        tar_pose = tar_pose_raw[:, :, :156].to(device)
+        tar_contact = tar_pose_raw[:, :, 156:156+2].to(device)
         tar_contact = torch.zeros_like(tar_contact) # nl
-        tar_trans = dict_data["trans"].to(self.rank)
+        tar_trans = dict_data["trans"].to(device)
         tar_trans = torch.zeros_like(tar_trans) # nl
-        tar_exps = dict_data["facial"].to(self.rank) # [1, 1]
+        tar_exps = dict_data["facial"].to(device) # [1, 1]
         # print(f"tar_exps: {tar_exps}, {tar_exps.shape}")
-        in_audio = dict_data["audio"].to(self.rank) 
+        in_audio = dict_data["audio"].to(device) 
         in_word = None
-        tar_id = dict_data["id"].to(self.rank).long()
+        tar_id = dict_data["id"].to(device).long()
         # *********
         tar_id = torch.where((tar_id >= 25) | (tar_id < 0), torch.tensor(0, device=tar_id.device), tar_id)
         # *********
@@ -405,14 +420,16 @@ class BaseTrainer(object):
         remain = (n - self.args.pre_frames) % (self.args.pose_length - self.args.pre_frames)
         round_l = self.args.pose_length - self.args.pre_frames
 
-        # print(f"roundt: {roundt}")
+        print(f"roundt: {roundt}")
+        roundt = 1
 
         for i in range(0, roundt):
             # in_word_tmp = in_word[:, i*(round_l):(i+1)*(round_l)+self.args.pre_frames]
             # audio fps is 16000 and pose fps is 30
             in_audio_tmp = in_audio[:, i*(16000//30*round_l):(i+1)*(16000//30*round_l)+16000//30*self.args.pre_frames]
+            # in_audio_tmp = in_audio
             in_id_tmp = loaded_data['tar_id'][:, i*(round_l):(i+1)*(round_l)+self.args.pre_frames]
-            mask_val = torch.ones(bs, self.args.pose_length, self.args.pose_dims+3+2).float().cuda()
+            mask_val = torch.ones(bs, self.args.pose_length, self.args.pose_dims+3+2).float().to(device)
             mask_val[:, :self.args.pre_frames, :] = 0.0
             if i == 0:
                 latent_all_tmp = latent_all[:, i*(round_l):(i+1)*(round_l)+self.args.pre_frames, :]
@@ -420,6 +437,11 @@ class BaseTrainer(object):
                 latent_all_tmp = latent_all[:, i*(round_l):(i+1)*(round_l)+self.args.pre_frames, :]
                 # print(latent_all_tmp.shape, latent_last.shape)
                 latent_all_tmp[:, :self.args.pre_frames, :] = latent_last[:, -self.args.pre_frames:, :]
+
+            print(f"in_audio: {in_audio.shape}")
+            print(f"latent_all_tmp: {latent_all.shape}")
+            print(f"mask_val: {mask_val.shape}")
+            print(f"in_id_tmp: {in_id_tmp.shape}")
             
             net_out_val = inference_model(
                 in_audio = in_audio_tmp,
@@ -599,94 +621,135 @@ class BaseTrainer(object):
 
 
 
-    def _g_test_micro(self, load_data):
-        """
-        Hybrid _g_test:
-          - Nếu loaded_data chứa 'tar_pose' (full-sequence from dataset) -> dùng logic gốc (với chunking nội bộ).
-          - Nếu loaded_data **không** có 'tar_pose' (ví dụ: online mic chunk) -> chạy 1 bước inference cho 1 chunk,
-            sử dụng self.latent_last (nếu có) để gắn pre_frames.
-        Trả về dict giống format gốc:
-          {'rec_pose', 'rec_trans', 'tar_pose', 'tar_exps', 'tar_trans', 'rec_exps'}
-        """
+    def _g_test_micro(self, loaded_data):
+        start4 = time.time()
         mode = 'test'
-        device = getattr(self, "device", torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-    
-        # --- Always get audio and move to device ---
-        in_audio = loaded_data["in_audio"].to(device)  # expected shape (bs, T)
-        bs = in_audio.shape[0]
-    
-        # Decide mode: full-file (has ground-truth tar_pose) or single-chunk (no tar_pose)
-        has_tar = ("tar_pose" in loaded_data) and (loaded_data["tar_pose"] is not None)
-    
-        # Useful params
-        pose_length = int(self.args.pose_length)
-        pre_frames = int(self.args.pre_frames)
-        pose_dims = int(self.args.pose_dims)  # note: pose_dims should match 52*6 in your setup
-        latent_dim = pose_dims + 3 + 2  # [pose_6d] + trans(3) + contact(2)
-        j = _joints
+        bs, n, j = loaded_data["tar_pose"].shape[0], loaded_data["tar_pose"].shape[1], _joints 
+        
+        print(f"bs, n, j: {bs}, {n}, {j}") # 1, 1950, 2
 
 
-        # -----------------------
-        # ONLINE / SINGLE-CHUNK branch (no tar_pose provided)
-        # -----------------------
-        # We'll assume in_audio corresponds to one model window (pose_length),
-        # and we run exactly one inference step. We preserve overlap continuity
-        # by using self.latent_last for pre_frames if available.
+        tar_pose = loaded_data["tar_pose"]
+        # tar_beta = loaded_data["tar_beta"]
+        in_word =None# loaded_data["in_word"]
+        tar_exps = loaded_data["tar_exps"]
+        tar_contact = loaded_data["tar_contact"]
+        tar_contact = torch.zeros_like(tar_contact) # nl
+        in_audio = loaded_data["in_audio"]
+        tar_trans = loaded_data["tar_trans"]
+        tar_trans = torch.zeros_like(tar_trans) # nl
 
-        # prepare mask and latent input
-        mask_val = torch.ones(bs, pose_length, pose_dims+3+2, device=device).float()
-        mask_val[:, :pre_frames, :] = 0.0
+        remain = n%8
+        if remain != 0:
+            tar_pose = tar_pose[:, :-remain, :]
+            # tar_beta = tar_beta[:, :-remain, :]
+            tar_trans = tar_trans[:, :-remain, :]
+            # in_word = in_word[:, :-remain]
+            tar_exps = tar_exps[:, :-remain, :]
+            tar_contact = tar_contact[:, :-remain, :]
+            n = n - remain
 
-        # latent input: zeros then copy pre_frames from self.latent_last if available
-        latent_all_tmp = torch.zeros(bs, pose_length, latent_dim, device=device)
+         # face
+        tar_pose_face = tar_exps
 
-        if hasattr(self, "latent_last") and (self.latent_last is not None):
-            # if latent_last shorter than pre_frames, take what's available at the end
-            ll = self.latent_last.to(device)
-            take = min(ll.shape[1], pre_frames)
-            if take > 0:
-                latent_all_tmp[:, :take, :] = ll[:, -take:, :]
+        # hands
+        tar_pose_hands = tar_pose[:, :, _joint_mask_hands.astype(bool)]
+        tar_pose_hands = rc.euler_angles_to_matrix(tar_pose_hands.reshape(bs, n, 32, 3), "YXZ")
+        tar_pose_hands = rc.matrix_to_rotation_6d(tar_pose_hands).reshape(bs, n, 32*6)
 
-        # in_id not available in online mode
-        in_id_tmp = None
+        # upper
+        tar_pose_upper = tar_pose[:, :, _joint_mask_upper.astype(bool)]
+        tar_pose_upper = rc.euler_angles_to_matrix(tar_pose_upper.reshape(bs, n, 11, 3), "YXZ")
+        tar_pose_upper = rc.matrix_to_rotation_6d(tar_pose_upper).reshape(bs, n, 11*6)
 
-        # run inference once
+        # lower
+        tar_pose_leg = tar_pose[:, :, _joint_mask_lower.astype(bool)]
+        tar_pose_leg = torch.zeros_like(tar_pose_leg) # nl
+        tar_pose_leg = rc.euler_angles_to_matrix(tar_pose_leg.reshape(bs, n, 9, 3), "YXZ")
+        tar_pose_leg = rc.matrix_to_rotation_6d(tar_pose_leg).reshape(bs, n, 9*6)
+        tar_pose_lower = torch.cat([tar_pose_leg, tar_trans, tar_contact], dim=2)
+        
+        tar_pose_6d = rc.euler_angles_to_matrix(tar_pose.reshape(bs, n, 52, 3), "YXZ")
+        tar_pose_6d = rc.matrix_to_rotation_6d(tar_pose_6d).reshape(bs, n, 52*6)
+        latent_all = torch.cat([tar_pose_6d, tar_trans, tar_contact], dim=-1)
+
+
+        # Lấy toàn bộ id
+        in_id_tmp = loaded_data['tar_id']  
+
+        # Tạo mask cho toàn bộ sequence
+        mask_val = torch.ones(bs, self.args.pose_length, self.args.pose_dims+3+2).float().to(device)
+        mask_val[:, :self.args.pre_frames, :] = 0.0
+
+        # Lấy toàn bộ latent (không cần chắp nối từng chunk)
+        latent_all_tmp = latent_all
+
+        # in_id_tmp = loaded_data['tar_id']
+        # in_id_tmp = loaded_data['tar_id'][:, 0*(round_l):(0+1)*(round_l)+self.args.pre_frames]
+        in_id_tmp = loaded_data['tar_id']
+        min_len = min(latent_all.shape[1], in_id_tmp.shape[1])
+        latent_all_tmp = latent_all[:, :64, :]
+        mask_val = mask_val[:, :min_len, :]
+        in_id_tmp = in_id_tmp[:, :64, :]
+
+        latent_all_tmp = torch.zeros_like(latent_all_tmp)
+        in_id_tmp = torch.zeros_like(in_id_tmp)
+
+        end4 = time.time()
+        print(f"Thời gian chạy trước net_out_val: {end4 - start4:.3f} giây")
+
+        print(f"in_audio: {in_audio}")
+
+        print(f"in_audio: {in_audio.shape}")
+        print(f"latent_all_tmp: {latent_all_tmp.shape}")
+        print(f"mask_val: {mask_val.shape}")
+        print(f"in_id_tmp: {in_id_tmp.shape}")
+        print(f"tar_id: {loaded_data['tar_id'].shape}")
+
+
+        start5 = time.time()
         net_out_val = inference_model(
             in_audio = in_audio,
-            in_word = None,
-            mask = mask_val,
+            in_word=None, #in_word_tmp,
+            mask=mask_val,
             in_motion = latent_all_tmp,
             in_id = in_id_tmp,
-            use_attentions = True,
-            use_word = False
+            use_attentions=True,
+            use_word=False
         )
+        end5 = time.time()
+        print(f"Thời gian chạy net_out_val: {end5 - start5:.3f} giây")
 
-        # same quantize/decode logic as in loop but single-step
+        start6 = time.time()
         if self.args.cu != 0:
             rec_index_upper = _log_softmax(net_out_val["cls_upper"]).reshape(-1, self.args.vae_codebook_size)
-            _, rec_index_upper = torch.max(rec_index_upper.reshape(-1, pose_length, self.args.vae_codebook_size), dim=2)
+            _, rec_index_upper = torch.max(rec_index_upper.reshape(-1, self.args.pose_length, self.args.vae_codebook_size), dim=2)
+            #rec_upper = _vq_model_upper.decode(rec_index_upper)
         else:
             _, rec_index_upper, _, _ = _vq_model_upper.quantizer(net_out_val["rec_upper"])
-
+            #rec_upper = _vq_model_upper.decoder(rec_index_upper)
         if self.args.cl != 0:
             rec_index_lower = _log_softmax(net_out_val["cls_lower"]).reshape(-1, self.args.vae_codebook_size)
-            _, rec_index_lower = torch.max(rec_index_lower.reshape(-1, pose_length, self.args.vae_codebook_size), dim=2)
+            _, rec_index_lower = torch.max(rec_index_lower.reshape(-1, self.args.pose_length, self.args.vae_codebook_size), dim=2)
+            #rec_lower = _vq_model_lower.decode(rec_index_lower)
         else:
             _, rec_index_lower, _, _ = _vq_model_lower.quantizer(net_out_val["rec_lower"])
-
+            #rec_lower = _vq_model_lower.decoder(rec_index_lower)
         if self.args.ch != 0:
             rec_index_hands = _log_softmax(net_out_val["cls_hands"]).reshape(-1, self.args.vae_codebook_size)
-            _, rec_index_hands = torch.max(rec_index_hands.reshape(-1, pose_length, self.args.vae_codebook_size), dim=2)
+            _, rec_index_hands = torch.max(rec_index_hands.reshape(-1, self.args.pose_length, self.args.vae_codebook_size), dim=2)
+            #rec_hands = _vq_model_hands.decode(rec_index_hands)
         else:
             _, rec_index_hands, _, _ = _vq_model_hands.quantizer(net_out_val["rec_hands"])
-
+            #rec_hands = _vq_model_hands.decoder(rec_index_hands)
         if self.args.cf != 0:
             rec_index_face = _log_softmax(net_out_val["cls_face"]).reshape(-1, self.args.vae_codebook_size)
-            _, rec_index_face = torch.max(rec_index_face.reshape(-1, pose_length, self.args.vae_codebook_size), dim=2)
+            _, rec_index_face = torch.max(rec_index_face.reshape(-1, self.args.pose_length, self.args.vae_codebook_size), dim=2)
+            #rec_face = _vq_model_face.decoder(rec_index_face)
         else:
             _, rec_index_face, _, _ = _vq_model_face.quantizer(net_out_val["rec_face"])
+            #rec_face = _vq_model_face.decoder(rec_index_face)
 
-        # decode
         if self.args.cu != 0:
             rec_upper_last = _vq_model_upper.decode(rec_index_upper)
         else:
@@ -700,242 +763,62 @@ class BaseTrainer(object):
         else:
             rec_hands_last = _vq_model_hands.decoder(rec_index_hands)
         if self.args.cf != 0:
-            # face decode usually at the end; decode here for rec_exps
             rec_face_last = _vq_model_face.decode(rec_index_face)
         else:
             rec_face_last = _vq_model_face.decoder(rec_index_face)
 
-        # process decoded tensors to pose/expression as in original per-step
-        rec_lower_last = torch.zeros_like(rec_lower_last)  # nl (same as original)
-        rec_pose_legs = rec_lower_last[:, :, :54]
-        bs_tmp, n_tmp = rec_pose_legs.shape[0], rec_pose_legs.shape[1]
-
-        rec_pose_upper = rec_upper_last.reshape(bs_tmp, n_tmp, 11, 6)
-        rec_pose_upper = rc.rotation_6d_to_matrix(rec_pose_upper)
-        rec_pose_upper = rc.matrix_to_axis_angle(rec_pose_upper).reshape(bs_tmp*n_tmp, 11*3)
-        rec_pose_upper_recover = self.inverse_selection_tensor(rec_pose_upper, _joint_mask_upper, bs_tmp*n_tmp)
-
-        rec_pose_lower = rec_pose_legs.reshape(bs_tmp, n_tmp, 9, 6)
-        rec_pose_lower = torch.zeros_like(rec_pose_lower)  # nl
-        rec_pose_lower = rc.rotation_6d_to_matrix(rec_pose_lower)
-        rec_lower2global = rc.matrix_to_rotation_6d(rec_pose_lower.clone()).reshape(bs_tmp, n_tmp, 9*6)
-        rec_pose_lower = rc.matrix_to_axis_angle(rec_pose_lower).reshape(bs_tmp*n_tmp, 9*3)
-        rec_pose_lower_recover = self.inverse_selection_tensor(rec_pose_lower, _joint_mask_lower, bs_tmp*n_tmp)
-        rec_pose_lower_recover = torch.zeros_like(rec_pose_lower_recover)
-
-        rec_pose_hands = rec_hands_last.reshape(bs_tmp, n_tmp, 32, 6)
-        rec_pose_hands = rc.rotation_6d_to_matrix(rec_pose_hands)
-        rec_pose_hands = rc.matrix_to_axis_angle(rec_pose_hands).reshape(bs_tmp*n_tmp, 32*3)
-        rec_pose_hands_recover = self.inverse_selection_tensor(rec_pose_hands, _joint_mask_hands, bs_tmp*n_tmp)
-
-        rec_pose_sum = rec_pose_upper_recover + rec_pose_lower_recover + rec_pose_hands_recover
-
-        # to 6d representation for return & for building latent_last
-        rec_pose_mat = rc.axis_angle_to_matrix(rec_pose_sum.reshape(bs_tmp, n_tmp, j, 3))
-        rec_pose_6d = rc.matrix_to_rotation_6d(rec_pose_mat).reshape(bs_tmp, n_tmp, j*6)
-
-        rec_trans_v_s = rec_lower_last[:, :, 54:57]
-        rec_trans = torch.zeros_like(rec_trans_v_s)  # nl
-
-        latent_last = torch.cat([rec_pose_6d, rec_trans, rec_lower_last[:, :, 57:59]], dim=-1)
-        # save latent for next incoming chunk
-        self.latent_last = latent_last.detach().clone()
-
-        # assemble return tensors
-        # rec_exps (face)
         rec_exps = rec_face_last
 
-        # rec_pose returned as 6d (same final format as original)
-        rec_pose = rec_pose_6d  # shape (bs, n_tmp, j*6)
-        tar_pose = torch.zeros(bs_tmp, n_tmp, j*3, device=device)   # zeros placeholder (axis-angle flattened)
-        tar_exps = torch.zeros(bs_tmp, n_tmp, 51, device=device)
-        tar_trans = torch.zeros(bs_tmp, n_tmp, 3, device=device)
+        rec_lower_last = torch.zeros_like(rec_lower_last) # nl
+        rec_pose_legs = rec_lower_last[:, :, :54]
+        bs, n = rec_pose_legs.shape[0], rec_pose_legs.shape[1]
+        
+        rec_pose_upper = rec_upper_last.reshape(bs, n, 11, 6)
+        rec_pose_upper = rc.rotation_6d_to_matrix(rec_pose_upper)#
+        rec_pose_upper = rc.matrix_to_axis_angle(rec_pose_upper).reshape(bs*n, 11*3)
+        rec_pose_upper_recover = self.inverse_selection_tensor(rec_pose_upper, _joint_mask_upper, bs*n)
+        
+        rec_pose_lower = rec_pose_legs.reshape(bs, n, 9, 6)
+        rec_pose_lower = torch.zeros_like(rec_pose_lower) # nl
+        rec_pose_lower = rc.rotation_6d_to_matrix(rec_pose_lower)
+        rec_pose_lower = rc.matrix_to_axis_angle(rec_pose_lower).reshape(bs*n, 9*3)
+        rec_pose_lower_recover = self.inverse_selection_tensor(rec_pose_lower, _joint_mask_lower, bs*n)
+        
+        rec_pose_hands = rec_hands_last.reshape(bs, n, 32, 6)
+        rec_pose_hands = rc.rotation_6d_to_matrix(rec_pose_hands)
+        rec_pose_hands = rc.matrix_to_axis_angle(rec_pose_hands).reshape(bs*n, 32*3)
+        rec_pose_hands_recover = self.inverse_selection_tensor(rec_pose_hands, _joint_mask_hands, bs*n)
+        
+        rec_pose = rec_pose_upper_recover + rec_pose_lower_recover + rec_pose_hands_recover 
+        rec_pose = rc.axis_angle_to_matrix(rec_pose.reshape(bs, n, j, 3))
+        rec_pose = rc.matrix_to_rotation_6d(rec_pose).reshape(bs, n, j*6)
+        rec_trans_v_s = rec_lower_last[:, :, 54:57]
 
+        rec_trans = torch.zeros_like(rec_trans_v_s) # nl
+        print(f"rec_trans for: {rec_trans.shape}")
+        latent_last = torch.cat([rec_pose, rec_trans, rec_lower_last[:, :, 57:59]], dim=-1)
+
+        end6 = time.time()
+        print(f"Thời gian chạy sau net_out_val: {end6 - start6:.3f} giây")
+
+        # print(f"net_out_vallllllll: {net_out_val}")
         return {
             'rec_pose': rec_pose,
             'rec_trans': rec_trans,
             'tar_pose': tar_pose,
             'tar_exps': tar_exps,
+            # 'tar_beta': tar_beta,
             'tar_trans': tar_trans,
             'rec_exps': rec_exps,
         }
 
-        
-
-    
-
-    def test_demo_micro(self, epoch, ap):
-
-        # Load names
-        with open(self.args.code_path + '/scripts/EMAGE_2024/utils/assets/names_only.json', 'r') as f:
-            names_data = json.load(f)
-        names = names_data['name']  # should be a list of 51 items
-    
-        bvh_path = self.args.code_path + "/scripts/EMAGE_2024/utils/assets/1_fufu_0_1_1_first64.bvh"  
-        bvh_pose_master = load_framewise_pose_file(bvh_path)     # shape: (F_bvh, j*3)
-    
-        # --- NEW: hỗ trợ mic tuple (samplerate, waveform) ---
-        is_mic_input = isinstance(ap, (tuple, list)) and len(ap) == 2
-        if is_mic_input:
-            mic_sr, mic_audio = ap
-            filename = f"mic_{int(time.time()*1000)}"
-        else:
-            filename = os.path.splitext(os.path.basename(ap))[0]
-    
-        results_save_path = self.checkpoint_path + f"{epoch}/"
-        # --- NEW: không xóa khi là mic (stream nhiều chunk) ---
-        if not is_mic_input:
-            if os.path.exists(results_save_path): 
-                import shutil
-                shutil.rmtree(results_save_path)
-        os.makedirs(results_save_path, exist_ok=True)
-    
-        start_time = time.time()
-        total_length = 0
-    
-        test_demo = "inference"
-    
-        align = 0 
-        latent_out = []
-        latent_ori = []
-        l2_all = 0 
-        lvel = 0
-        inference_model.eval()
-    
-        # --- NEW: chuẩn bị nguồn batch ---
-        if is_mic_input:
-            device = getattr(self, "device", torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-    
-            if isinstance(mic_audio, np.ndarray):
-                if mic_audio.ndim == 2 and mic_audio.shape[1] == 1:
-                    mic_audio = mic_audio[:, 0]
-                elif mic_audio.ndim > 1:
-                    mic_audio = mic_audio[..., 0]
-            else:
-                mic_audio = np.asarray(mic_audio, dtype=np.float32)
-    
-            mic_audio = mic_audio.astype(np.float32)
-            max_abs = np.max(np.abs(mic_audio)) + 1e-8
-            mic_audio = mic_audio / max_abs
-    
-            in_audio_tensor = torch.from_numpy(mic_audio).float().unsqueeze(0).to(device)  # (1, T)
-            mic_loaded_data = {'in_audio': in_audio_tensor}
-    
-            batch_iterable = [mic_loaded_data]
-            use_loader = False
-        else:
-            batch_iterable = self.test_loader
-            use_loader = True
-    
-        result_path = ""
-        with torch.no_grad():
-            for its, batch_data in enumerate(batch_iterable):
-                if use_loader:
-                    loaded_data = self._load_data(batch_data)
-                else:
-                    loaded_data = batch_data  # {'in_audio': (1,T)}
-    
-                net_out = self._g_test(loaded_data)
-                in_audio = loaded_data['in_audio']
-                tar_pose = net_out['tar_pose']
-                rec_pose = net_out['rec_pose']
-                tar_exps = net_out['tar_exps']
-                rec_trans = net_out['rec_trans']
-                tar_trans = net_out['tar_trans']
-                rec_exps = net_out['rec_exps']
-                bs, n, j = tar_pose.shape[0], tar_pose.shape[1], _joints
-    
-                rec_pose = rc.rotation_6d_to_matrix(rec_pose.reshape(bs*n, j, 6))
-                rec_pose = rc.matrix_to_euler_angles(rec_pose, "YXZ").reshape(bs, n, j, 3) 
-                rec_pose = np.rad2deg(rec_pose.cpu().numpy())
-    
-                ###------------Fix abnormal motion-----------------##
-                rec_pose = fix_abnormal_joint_motion_soft(
-                    rec_pose,
-                    joint_idx=27, ## Joint thứ 28(RArm1 là joint 27 trong 0-base)
-                    fps=30.0,
-                    abnormal_threshold_deg_per_s=600.0,
-                    blend_factor=0.2
-                )
-                ###------------Fix abnormal motion-----------------##
-            
-                rec_pose = rec_pose.reshape(bs*n, j*3)
-                trans = torch.zeros_like(rec_trans)
-                trans = rec_trans.reshape(bs*n, 3).cpu().numpy()
-    
-                # --- Make a working copy of BVH pose and repeat/trim to match current length ---
-                bvh_pose = bvh_pose_master  # (F_bvh, j*3)
-    
-                if bvh_pose.shape[0] < rec_pose.shape[0]:
-                    # Repeat rows (tile) until we have at least as many frames as rec_pose
-                    repeats = -(-rec_pose.shape[0] // bvh_pose.shape[0])  # ceiling division
-                    bvh_pose = np.tile(bvh_pose, (repeats, 1))
-                
-                # Trim to exact length
-                bvh_pose = bvh_pose[:rec_pose.shape[0], :]
-                use_frames = rec_pose.shape[0]  
-                
-                # --- 1) rec_trans <- first 3 values of the BVH per frame ---
-                trans[:use_frames, :] = bvh_pose[:use_frames, 0:3]
-                
-                # --- 2) Last 8 joints of rec_pose <- BVH's last 8*3 values (last 24 channels) ---
-                rec_pose[:use_frames, -24:] = bvh_pose[:use_frames, -24:]
-                
-                # --- 3) rec_pose[:, 3:6] <- BVH[:, 3:6] ---
-                rec_pose[:use_frames, 3:6] = bvh_pose[:use_frames, 3:6]
-                
-                # Concatenate translation + pose channels for saving
-                rec_pose = np.concatenate([trans, rec_pose], axis=1)  # (frames, 3 + j*3)
-                
-                total_length += n
-                 
-                result_path = f"{results_save_path}res_{filename}.bvh"
-                with open(f"{results_save_path}result_raw_{filename}.bvh", 'w+') as f_real:
-                    for line_id in range(rec_pose.shape[0]):
-                        line_data = np.array2string(rec_pose[line_id], max_line_width=np.inf, precision=6, suppress_small=False, separator=' ')
-                        f_real.write(line_data[1:-2]+'\n')
-    
-                # === Save input audio as .wav ===
-                audio_np = in_audio.squeeze().detach().cpu().numpy()
-                audio_np = audio_np / (np.max(np.abs(audio_np)) + 1e-8)  # normalize [-1, 1]
-                audio_int16 = (audio_np * 32767).astype(np.int16)
-    
-                # --- NEW: dùng sample rate tương ứng ---
-                if is_mic_input:
-                    sample_rate = int(mic_sr)
-                else:
-                    sample_rate = getattr(self.args, "audio_sample_rate", 16000)
-    
-                wavfile.write(f"{results_save_path}in_audio_{filename}.wav", sample_rate, audio_int16)
-    
-                ## Save face
-                rec_exps = rec_exps.cpu().numpy().reshape(bs*n, 51)
-                rec_exps = np.clip(rec_exps, 0, 1) # Clip to 0-1
-                frames = [{"weights": list(map(float, frame))} for frame in rec_exps]
-            
-                save_dict = {
-                    "name": names,
-                    "frames": frames
-                }
-            
-                save_path = f"{results_save_path}face_{filename}.json"
-                with open(save_path, 'w') as f:
-                    json.dump(save_dict, f, indent=2)
-                
-                del rec_pose, tar_pose, rec_trans, net_out, loaded_data, in_audio
-                torch.cuda.empty_cache()
-    
-            data_tools.result2target_vis("mixamo_joint_full", results_save_path, results_save_path, test_demo, mode="all_or_lower", verbose=False)
-    
-        end_time = time.time() - start_time
-        logger.info(f"total inference time: {int(end_time)} s for {int(total_length/self.args.pose_fps)} s motion")
-        return result_path
-
-        
 
 
     def test_demo(self, epoch, ap):
 
+        print("inference")
+        start1 = time.time()
+
         # Load names
         with open(self.args.code_path + '/scripts/EMAGE_2024/utils/assets/names_only.json', 'r') as f:
             names_data = json.load(f)
@@ -944,10 +827,11 @@ class BaseTrainer(object):
         bvh_path = self.args.code_path + "/scripts/EMAGE_2024/utils/assets/1_fufu_0_1_1_first64.bvh"  
         bvh_pose_master = load_framewise_pose_file(bvh_path)     # shape: (F_bvh, j*3)
 
+        print(f"abc")
+        filename = 'result' # os.path.splitext(os.path.basename(ap))[0]
         
-        filename = os.path.splitext(os.path.basename(ap))[0]
-        
-        results_save_path = self.checkpoint_path + f"{epoch}/"
+        # results_save_path = self.checkpoint_path + f"{epoch}/"
+        results_save_path = "/Users/caocongdanh/Study/NCU/Lab/source/outputs/"
         if os.path.exists(results_save_path): 
             import shutil
             shutil.rmtree(results_save_path)
@@ -957,131 +841,138 @@ class BaseTrainer(object):
         
         # test_demo = "/data/nas07/PersonalData/danh/EMAGEMixamo/mixamo_english_30_4_811_all/test_norm/bvh_full/"  
         test_demo = "inference"
-        # test_seq_list = os.listdir(test_demo)
-        # test_seq_list.sort()
 
-        # test_seq_list = self.test_data.selected_file
-        
-        align = 0 
-        latent_out = []
-        latent_ori = []
-        l2_all = 0 
-        lvel = 0
         inference_model.eval()
-        # self.smplx.eval()
-        # self.eval_copy.eval()
         result_path = ""
+        end1 = time.time()
+        print(f"Thời gian chạy inference: {end1 - start1:.3f} giây")
+        # print(f"len(self.test_loader.dataset): {len(self.test_loader.dataset)}")
+        # print(f"len(self.test_loader): {len(self.test_loader)}")
         with torch.no_grad():
-            for its, batch_data in enumerate(self.test_loader):
-                # print(its, "abc\n\n\n\n")
-                loaded_data = self._load_data(batch_data)
-                net_out = self._g_test(loaded_data)
-                in_audio = loaded_data['in_audio']
-                tar_pose = net_out['tar_pose']
-                rec_pose = net_out['rec_pose']
-                tar_exps = net_out['tar_exps']
-                # tar_beta = net_out['tar_beta']
-                rec_trans = net_out['rec_trans']
-                tar_trans = net_out['tar_trans']
-                rec_exps = net_out['rec_exps']
-                # print(rec_pose.shape, tar_pose.shape)
-                bs, n, j = tar_pose.shape[0], tar_pose.shape[1], _joints
+            # for its, batch_data in enumerate(self.test_loader):
+            batch_data = next(iter(self.test_loader))
 
-                rec_pose = rc.rotation_6d_to_matrix(rec_pose.reshape(bs*n, j, 6))
-                # rec_pose = rc.matrix_to_euler_angles(rec_pose, "YXZ").reshape(bs*n, j*3)
-                rec_pose = rc.matrix_to_euler_angles(rec_pose, "YXZ").reshape(bs, n, j, 3) 
+            start2 = time.time()
+            loaded_data = self._load_data(batch_data)
+            loaded_data['in_audio'] = ap[1]
+            end2 = time.time()
+            print(f"Thời gian chạy _load_data: {end2 - start2:.3f} giây")
+            start = time.time()
+            net_out = self._g_test_micro(loaded_data)
+            end = time.time()
+            print(f"Thời gian chạy _g_test_demo: {end - start:.3f} giây")
+            print(f"in test_demo: {net_out.keys()}")
+            print(f"_g_test output: {net_out}")
+            start3 = time.time()
+            tar_pose = net_out['tar_pose']
+            rec_pose = net_out['rec_pose']
+            tar_exps = net_out['tar_exps']
+            rec_trans = net_out['rec_trans']
+            tar_trans = net_out['tar_trans']
+            rec_exps = net_out['rec_exps']
 
-                rec_pose = np.rad2deg(rec_pose.cpu().numpy())
+            # audio from micro
+            in_audio = ap
 
-                ###------------Fix abnormal motion-----------------##
-                # rec_pose is (bs, n, j, 3) in degrees
-                rec_pose = fix_abnormal_joint_motion_soft(
-                    rec_pose,
-                    joint_idx=27, ## Joint thứ 28(RArm1 là joint 27 trong 0-base
-                    fps=30.0,
-                    abnormal_threshold_deg_per_s=600.0,
-                    blend_factor=0.2  # tweak to control how much smoothing
-                )
-                ###------------Fix abnormal motion-----------------##
+            bs, n, j = tar_pose.shape[0], tar_pose.shape[1], _joints
+
+            rec_pose = rc.rotation_6d_to_matrix(rec_pose.reshape(bs*64, j, 6))
+            rec_pose = rc.matrix_to_euler_angles(rec_pose, "YXZ").reshape(bs, 64, j, 3) 
+
+            rec_pose = np.rad2deg(rec_pose.cpu().numpy())
+
+            rec_pose = fix_abnormal_joint_motion_soft(
+                rec_pose,
+                joint_idx=27,
+                fps=30.0,
+                abnormal_threshold_deg_per_s=600.0,
+                blend_factor=0.2  # tweak to control how much smoothing
+            )
+        
+            rec_pose = rec_pose.reshape(bs*64, j*3)
+            trans = torch.zeros_like(rec_trans)
+            trans= rec_trans.reshape(bs*64, 3).cpu().numpy()
+
+            bvh_pose = bvh_pose_master  # (F_bvh, j*3)
+
             
-                rec_pose = rec_pose.reshape(bs*n, j*3)
-                trans = torch.zeros_like(rec_trans)
-                trans= rec_trans.reshape(bs*n, 3).cpu().numpy()
-
-                # --- Make a working copy of BVH pose and repeat/trim to match current length ---
-                bvh_pose = bvh_pose_master  # (F_bvh, j*3)
-
-                
-                if bvh_pose.shape[0] < rec_pose.shape[0]:
-                    # Repeat rows (tile) until we have at least as many frames as rec_pose
-                    repeats = -(-rec_pose.shape[0] // bvh_pose.shape[0])  # ceiling division
-                    bvh_pose = np.tile(bvh_pose, (repeats, 1))
-                
-                # Trim to exact length
-                bvh_pose = bvh_pose[:rec_pose.shape[0], :]
-                use_frames = rec_pose.shape[0]  
-                
-                # --- 1) rec_trans <- first 3 values of the BVH per frame ---
-                trans[:use_frames, :] = bvh_pose[:use_frames, 0:3]
-                
-                # --- 2) Last 8 joints of rec_pose <- BVH's last 8*3 values (last 24 channels) ---
-                rec_pose[:use_frames, -24:] = bvh_pose[:use_frames, -24:]
-                
-                # --- 3) rec_pose[:, 3:6] <- BVH[:, 3:6] ---
-                rec_pose[:use_frames, 3:6] = bvh_pose[:use_frames, 3:6]
-                
-                # Concatenate translation + pose channels for saving
-                trans = trans
-                rec_pose = np.concatenate([trans, rec_pose], axis=1)  # (frames, 3 + j*3)
-                
-                total_length += n
-                 
-                # seq_name = test_seq_list[its].split('.')[0]  # safer filename
-                result_path = f"{results_save_path}res_{filename}.bvh"
-                with open(f"{results_save_path}result_raw_{filename}.bvh", 'w+') as f_real:
-                    for line_id in range(rec_pose.shape[0]): #,args.pre_frames, args.pose_length
-                        line_data = np.array2string(rec_pose[line_id], max_line_width=np.inf, precision=6, suppress_small=False, separator=' ')
-                        f_real.write(line_data[1:-2]+'\n')
-
-                # === Save input audio as .wav ===
-                audio_np = in_audio.squeeze().cpu().numpy()
-                audio_np = audio_np / (np.max(np.abs(audio_np)) + 1e-8)  # normalize to [-1, 1]
-                audio_int16 = (audio_np * 32767).astype(np.int16)
-                sample_rate = getattr(self.args, "audio_sample_rate", 16000)
-                wavfile.write(f"{results_save_path}in_audio_{filename}.wav", sample_rate, audio_int16)
-
-                ## Save face
-                rec_exps = rec_exps.cpu().numpy().reshape(bs*n, 51)
-                rec_exps = np.clip(rec_exps, 0, 1) # Clip the values to range of 0-1
-                frames = [{"weights": list(map(float, frame))} for frame in rec_exps]
+            if bvh_pose.shape[0] < rec_pose.shape[0]:
+                repeats = -(-rec_pose.shape[0] // bvh_pose.shape[0])  # ceiling division
+                bvh_pose = np.tile(bvh_pose, (repeats, 1))
             
-                save_dict = {
-                    "name": names,
-                    "frames": frames
-                }
+            bvh_pose = bvh_pose[:rec_pose.shape[0], :]
+            use_frames = rec_pose.shape[0]  
             
-                save_path = f"{results_save_path}face_{filename}.json"
-                with open(save_path, 'w') as f:
-                    json.dump(save_dict, f, indent=2)
+            trans[:use_frames, :] = bvh_pose[:use_frames, 0:3]
+            
+            rec_pose[:use_frames, -24:] = bvh_pose[:use_frames, -24:]
+            
+            rec_pose[:use_frames, 3:6] = bvh_pose[:use_frames, 3:6]
+            
+            trans = trans
+            rec_pose = np.concatenate([trans, rec_pose], axis=1)  # (frames, 3 + j*3)
+            
+            total_length += n
                 
-                        
-                del rec_pose, tar_pose, rec_trans, net_out, loaded_data, in_audio
-                torch.cuda.empty_cache()
+            # seq_name = test_seq_list[its].split('.')[0]  # safer filename
+            # result_path = f"{results_save_path}res_{filename}.bvh"
+            # with open(f"{results_save_path}result_raw_{filename}.bvh", 'w+') as f_real:
+            #     for line_id in range(rec_pose.shape[0]): #,args.pre_frames, args.pose_length
+            #         line_data = np.array2string(rec_pose[line_id], max_line_width=np.inf, precision=6, suppress_small=False, separator=' ')
+            #         f_real.write(line_data[1:-2]+'\n')
 
-            data_tools.result2target_vis("mixamo_joint_full", results_save_path, results_save_path, test_demo, mode="all_or_lower", verbose=False)
+            # === Save input audio as .wav ===
+            # audio_np = in_audio.squeeze().cpu().numpy()
+            # audio_np = audio_np / (np.max(np.abs(audio_np)) + 1e-8)  # normalize to [-1, 1]
+            # audio_int16 = (audio_np * 32767).astype(np.int16)
+            # sample_rate = getattr(self.args, "audio_sample_rate", 16000)
+            # wavfile.write(f"{results_save_path}in_audio_{filename}.wav", sample_rate, audio_int16)
+
+            ## Save face
+            rec_exps = rec_exps.cpu().numpy().reshape(bs*64, 51)
+            rec_exps = np.clip(rec_exps, 0, 1) # Clip the values to range of 0-1
+            frames = [{"weights": list(map(float, frame))} for frame in rec_exps]
+        
+            save_dict = {
+                "name": names,
+                "frames": frames
+            }
+        
+            # save_path = f"{results_save_path}face_{filename}.json"
+            # with open(save_path, 'w') as f:
+            #     json.dump(save_dict, f, indent=2)
+            
+            end3 = time.time()
+            print(f"Thời gian chạy sau _g_test_demo: {end3 - start3:.3f} giây")
+            del rec_pose, tar_pose, rec_trans, net_out, loaded_data, in_audio
+            torch.cuda.empty_cache()
+
+            # data_tools.result2target_vis("mixamo_joint_full", results_save_path, results_save_path, test_demo, mode="all_or_lower", verbose=False)
         # result = gr.Video(value=render_vid_path, visible=True)
         end_time = time.time() - start_time
         logger.info(f"total inference time: {int(end_time)} s for {int(total_length/self.args.pose_fps)} s motion")
-        return result_path
 
-audio_queue = queue.Queue()
+        return 'result_path'
+
+import threading
+import queue
+import numpy as np
+import sounddevice as sd
+import torch
+import warnings
+import sys
+import resampy
+import librosa
 
 @logger.catch
 def emage_from_mic():
+
+    print(sd.query_devices())
+    print(int(sd.query_devices(sd.default.device[1])['default_samplerate']))
+    # line898
+
     smplx_path = None
     text_path = None
-    rank = 0
-    world_size = 1
     args = config.parse_args()
 
     if not sys.warnoptions:
@@ -1090,42 +981,91 @@ def emage_from_mic():
     other_tools_hf.set_random_seed(args)
     other_tools_hf.print_exp_info(args)
 
-    samplerate = 16000
-    chunk_duration = 2  # change
-    chunk_samples = int(samplerate * chunk_duration)
+    target_sr = 16000
+    chunk_duration = 64 / 30
+    chunk_samples = int(target_sr * chunk_duration)
 
-    # Callback cho stream, push audio vào queue
+    audio_queue = queue.Queue()
+    buffer = np.empty((0, 1), dtype='float32')
+    buffer_lock = threading.Lock()  # bảo vệ buffer khi nhiều thread truy cập
+
+    # Callback micro → queue
     def audio_callback(indata, frames, time_info, status):
         if status:
             print(status)
-        audio_queue.put(indata.copy())
+        mic_sr = int(sd.query_devices(sd.default.device[1])['default_samplerate'])
+        if mic_sr != target_sr:
+            indata_resampled = resampy.resample(indata[:, 0], mic_sr, target_sr)[:, np.newaxis]
+        else:
+            indata_resampled = indata
+        # print(f"Callback nhận {frames} frames, shape={indata.shape}")
+        # print(f"Callback nhận {frames} samples")
+        audio_queue.put(indata_resampled.copy())
+        # print("Callback pushed:", audio_queue.qsize())
 
-    trainer = BaseTrainer(args, sp=smplx_path, ap=None, tp=text_path)
+    # Chuẩn bị model
+    data, samplerate = sf.read("/Users/caocongdanh/Downloads/delete/1_fufu_0_1_1.wav")
+    input_sample = (target_sr, data)
+    trainer = BaseTrainer(args, sp=smplx_path, ap=input_sample, tp=text_path)
     if not _global_inference:
         other_tools_hf.load_checkpoints(inference_model, test_checkpoint, args.g_name)
 
-    print("Bắt đầu ghi âm từ micro, mỗi 2 giây sẽ inference...")
-    with sd.InputStream(samplerate=samplerate, channels=1, dtype='float32', callback=audio_callback):
-        buffer = np.empty((0, 1), dtype='float32')
+    device = next(inference_model.parameters()).device
+    print("Bắt đầu ghi âm từ micro, mỗi ~2s sẽ inference...")
+
+    def read_audio_thread():
+        nonlocal buffer
         while True:
-            try:
-                # Lấy dữ liệu từ queue
-                while not audio_queue.empty():
-                    buffer = np.concatenate((buffer, audio_queue.get()), axis=0)
+            if not audio_queue.empty():
+                chunk = audio_queue.get()
+                with buffer_lock:
+                    buffer = np.concatenate((buffer, chunk), axis=0)
+                    # print(f"Buffer hiện có {buffer.shape[0]} samples")
 
-                # Nếu đủ 2 giây thì inference
+    def inference_thread():
+        nonlocal buffer
+        while True:
+            # print(f"Buffer hiện có {buffer.shape[0]} samples, cần {chunk_samples}")
+            with buffer_lock:
                 if buffer.shape[0] >= chunk_samples:
-                    chunk = buffer[:chunk_samples]  # Lấy 2 giây đầu
-                    buffer = buffer[chunk_samples:]  # Giữ lại phần còn lại
+                    chunk = buffer[:chunk_samples]
+                    buffer = buffer[chunk_samples:]
+                else:
+                    chunk = None
+            if chunk is not None:
+                in_audio_tensor = torch.tensor(chunk.squeeze(-1).T, dtype=torch.float32).unsqueeze(0).to(device)
+                audio_input = (target_sr, in_audio_tensor)
+                # preprocessing audio
+                audio_file = audio_input[1]
+                sr = audio_input[0]
+                audio_each_file = audio_file.detach().cpu().numpy().astype(np.float32)
+                audio_each_file = librosa.resample(audio_each_file, orig_sr=sr, target_sr=target_sr)
+                audio_each_file = torch.from_numpy(audio_each_file).to(device)
+                audio_input = (target_sr, audio_each_file)
+                start = time.time()
+                result = trainer.test_demo(999, ap=audio_input)
+                end = time.time()
+                print(f"Thời gian chạy: {end - start:.3f} giây")
+                print("Inference xong 1 chunk (~2s audio)")
 
-                    audio_input = (samplerate, chunk)
-                    result = trainer.test_demo(999, ap=audio_input)
-                    print("Inference xong 2 giây audio")
-                    # Ở đây bạn có thể xử lý hoặc lưu result
+    try:
+        with sd.InputStream(samplerate=int(sd.query_devices(sd.default.device[1])['default_samplerate']), channels=1, blocksize=4096, dtype='float32', callback=audio_callback):
+            print("Ghi âm đang chạy, nhấn Ctrl+C để dừng...")
+            t1 = threading.Thread(target=read_audio_thread, daemon=True)
+            t2 = threading.Thread(target=inference_thread, daemon=True)
+            t1.start()
+            t2.start()
+            t1.join()  # giữ main thread
+    except KeyboardInterrupt:
+        print("Dừng ghi âm, xử lý phần audio còn lại...")
+        with buffer_lock:
+            if buffer.shape[0] > 0:
+                in_audio_tensor = torch.tensor(buffer.squeeze(-1).T, dtype=torch.float32).unsqueeze(0).to(device)
+                audio_input = (target_sr, in_audio_tensor)
+                result = trainer.test_demo(999, ap=audio_input)
+                print("Inference xong phần audio còn lại")
+        print("Ghi âm đã kết thúc.")
 
-            except KeyboardInterrupt:
-                print("Stop.")
-                break
 
             
 if __name__ == "__main__":
@@ -1133,17 +1073,18 @@ if __name__ == "__main__":
     os.environ["MASTER_ADDR"] = '127.0.0.1'
     os.environ["MASTER_PORT"] = '8675'
 
-    while True: 
-        audio_path = input("Enter audio path (.wav): ").strip()
+    # while True: 
+        # audio_path = input("Enter audio path (.wav): ").strip()
 
-        if audio_path == '0':
-            break
+        # if audio_path == '0':
+        #     break
 
-        if not os.path.isfile(audio_path):
-            print(f"Error'{audio_path}' no exist")
-            sys.exit(1)
+        # if not os.path.isfile(audio_path):
+        #     print(f"Error'{audio_path}' no exist")
+        #     sys.exit(1)
 
-        output_file = emage(audio_path)
-        print(f"\nFinished. Result path: {output_file}\n")
-        _global_inference = True
+        # output_file = emage(audio_path)
+        # print(f"\nFinished. Result path: {output_file}\n")
+    emage_from_mic()
+    # _global_inference = True
 

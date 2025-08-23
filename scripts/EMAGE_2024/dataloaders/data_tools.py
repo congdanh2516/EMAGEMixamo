@@ -2193,84 +2193,164 @@ def result2target_vis(pose_version, res_bvhlist, save_path, demo_name, mode, ver
     counter = 0
     if not os.path.exists(save_path):
         os.makedirs(save_path)
-    for i, bvh_file_dir in enumerate(bvh_files_dirs):
-        # print(i, "xyz\n\n\n\n")
-        short_name = bvh_file_dir.split("/")[-1][11:]
-        #print(short_name)
-        wirte_file =  open(os.path.join(save_path, f'res_{short_name}'),'w+')
-        # print(f"demo_name: {demo_name}")
-        # print(f"short_name: {short_name}")
-        if demo_name == "inference":
-            with open("/data/nas07/PersonalData/danh/EMAGEMixamo/bvh_example/1_fufu_0_1_1.bvh",'r') as pose_data_pre:
-                pose_data_pre_file = pose_data_pre.readlines()
+    # print(f"bvh_files_dirs: {bvh_files_dirs}")
+    # for i, bvh_file_dir in enumerate(['/Users/caocongdanh/Study/NCU/Lab/source/outputs/result_raw_result.bvh']):
+    #     # print(i, "xyz\n\n\n\n")
+    #     # short_name = bvh_file_dir.split("/")[-1][11:]
+    #     short_name = "abc.bvh"
+    #     #print(short_name)
+    #     print(f"short_name: {short_name}")
+    #     print(f"save_path: {save_path}")
+    #     wirte_file =  open(os.path.join(save_path, f'res_{short_name}'),'w+')
+    #     # print(f"demo_name: {demo_name}")
+    #     # print(f"short_name: {short_name}")
+
+    #     # ghi phần hierarchy
+    #     if demo_name == "inference":
+    #         with open("/Users/caocongdanh/Study/NCU/Lab/source/EMAGEMixamo/scripts/EMAGE_2024/utils/assets/1_fufu_0_7_7_full.bvh",'r') as pose_data_pre:
+    #             pose_data_pre_file = pose_data_pre.readlines()
                 
-                for j, line in enumerate(pose_data_pre_file[0:file_content_length]):
-                    wirte_file.write(line)
+    #             for j, line in enumerate(pose_data_pre_file[0:file_content_length]):
+    #                 print(line)
+    #                 wirte_file.write(line)
                     
-                offset_data = pose_data_pre_file[file_content_length]
-                offset_data = np.fromstring(offset_data, dtype=float, sep=' ')
-        else:
-             with open(f"{demo_name}{short_name}",'r') as pose_data_pre:
-                pose_data_pre_file = pose_data_pre.readlines()
+    #             offset_data = pose_data_pre_file[file_content_length]
+    #             offset_data = np.fromstring(offset_data, dtype=float, sep=' ')
+    #     else:
+    #          with open(f"{demo_name}{short_name}",'r') as pose_data_pre:
+    #             pose_data_pre_file = pose_data_pre.readlines()
                 
-                for j, line in enumerate(pose_data_pre_file[0:file_content_length]):
-                    wirte_file.write(line)
+    #             for j, line in enumerate(pose_data_pre_file[0:file_content_length]):
+    #                 wirte_file.write(line)
                     
-                offset_data = pose_data_pre_file[file_content_length]
-                offset_data = np.fromstring(offset_data, dtype=float, sep=' ')
-        wirte_file.close()
+    #             offset_data = pose_data_pre_file[file_content_length]
+    #             offset_data = np.fromstring(offset_data, dtype=float, sep=' ')
+    #     wirte_file.close()
 
-        wirte_file = open(os.path.join(save_path, f'res_{short_name}'),'r')
-        ori_lines = wirte_file.readlines()
-        with open(bvh_file_dir, 'r') as pose_data:
-            pose_data_file = pose_data.readlines()
-        ori_lines[file_content_length-2] = 'Frames: ' + str(len(pose_data_file)-1) + '\n'
-        wirte_file.close() 
 
-        wirte_file = open(os.path.join(save_path, f'res_{short_name}'),'w+')
-        wirte_file.writelines(i for i in ori_lines[:file_content_length])    
-        wirte_file.close() 
+    #     wirte_file = open(os.path.join(save_path, f'res_{short_name}'),'r')
+    #     ori_lines = wirte_file.readlines()
+    #     with open(bvh_file_dir, 'r') as pose_data:
+    #         pose_data_file = pose_data.readlines()
+    #     ori_lines[file_content_length-2] = 'Frames: ' + str(len(pose_data_file)-1) + '\n'
+    #     wirte_file.close() 
 
-        # print(f"bvh_file_dir: {bvh_file_dir,}") # ket qua du doan cua mo hinh
+    #     wirte_file = open(os.path.join(save_path, f'res_{short_name}'),'w+')
+    #     wirte_file.writelines(i for i in ori_lines[:file_content_length])    
+    #     wirte_file.close() 
+
+    #     # print(f"bvh_file_dir: {bvh_file_dir,}") # ket qua du doan cua mo hinh
         
-        with open(os.path.join(save_path, f'res_{short_name}'),'a+') as wirte_file: 
-            with open(bvh_file_dir, 'r') as pose_data:
-                data_each_file = []
-                pose_data_file = pose_data.readlines()
-                for j, line in enumerate(pose_data_file):
-                    if not j:
-                        pass
-                    else:          
-                        data = np.fromstring(line, dtype=float, sep=' ') 
-                        # print("data:", data)
-                        data_rotation = offset_data.copy() 
-                        # print("data_rotation shape:", data_rotation.shape)
-                        if mode == "all_or_lower":
-                            # print("all_or_lower mode")
-                            for iii, (k, v) in enumerate(target_list.items()): # here is 147 rotations by 3 # target_list 
-                                # print (iii, k,v)
-                                if k == "Hips":  # Or the exact name/key used for root joint
-                                        # Copy 6 values: 3 translation + 3 rotation
-                                    # print("Write for Hips:", data[0:iii*3+6])
-                                    data_rotation[ori_list[k][1] - v : ori_list[k][1]] = data[0:iii*3+6]
-                                else:    
-                                    data_rotation[ori_list[k][1] - v : ori_list[k][1]] = data[iii*3+3:iii*3+3+3]
-                        elif mode == "upper_only":  
-                            # print("upper_only mode")
-                            for iii, (k, v) in enumerate(target_list.items()):
-                                # print (iii, k,v)
-                                data_rotation[ori_list[k][1] - v : ori_list[k][1]] = data[iii*3:iii*3+3]
-                                # print(data[iii*3:iii*3+3])
+    #     with open(os.path.join(save_path, f'res_{short_name}'),'a+') as wirte_file: 
+    #         with open(bvh_file_dir, 'r') as pose_data:
+    #             data_each_file = []
+    #             pose_data_file = pose_data.readlines()
+    #             for j, line in enumerate(pose_data_file):
+    #                 if not j:
+    #                     pass
+    #                 else:          
+    #                     data = np.fromstring(line, dtype=float, sep=' ') 
+    #                     # print("data:", data)
+    #                     data_rotation = offset_data.copy() 
+    #                     # print("data_rotation shape:", data_rotation.shape)
+    #                     if mode == "all_or_lower":
+    #                         # print("all_or_lower mode")
+    #                         for iii, (k, v) in enumerate(target_list.items()): # here is 147 rotations by 3 # target_list 
+    #                             # print (iii, k,v)
+    #                             if k == "Hips":  # Or the exact name/key used for root joint
+    #                                     # Copy 6 values: 3 translation + 3 rotation
+    #                                 # print("Write for Hips:", data[0:iii*3+6])
+    #                                 data_rotation[ori_list[k][1] - v : ori_list[k][1]] = data[0:iii*3+6]
+    #                             else:    
+    #                                 data_rotation[ori_list[k][1] - v : ori_list[k][1]] = data[iii*3+3:iii*3+3+3]
+    #                     elif mode == "upper_only":  
+    #                         # print("upper_only mode")
+    #                         for iii, (k, v) in enumerate(target_list.items()):
+    #                             # print (iii, k,v)
+    #                             data_rotation[ori_list[k][1] - v : ori_list[k][1]] = data[iii*3:iii*3+3]
+    #                             # print(data[iii*3:iii*3+3])
                             
-                        data_each_file.append(data_rotation)
+    #                     data_each_file.append(data_rotation)
         
-            for line_data in data_each_file:
-                line_data = np.array2string(line_data, max_line_width=np.inf, precision=6, suppress_small=False, separator=' ')
-                wirte_file.write(line_data[1:-2]+'\n')
+    #         for line_data in data_each_file:
+    #             line_data = np.array2string(line_data, max_line_width=np.inf, precision=6, suppress_small=False, separator=' ')
+    #             wirte_file.write(line_data[1:-2]+'\n')
 
-        counter += 1
-        if verbose:
-            # logger.info('data_shape:', data_rotation.shape, 'process:', counter, '/', len(bvh_files_dirs))
-            logger.info('data_shape: %s, process: %d / %d', data_rotation.shape, counter, len(bvh_files_dirs))
+    #     counter += 1
+    #     if verbose:
+    #         # logger.info('data_shape:', data_rotation.shape, 'process:', counter, '/', len(bvh_files_dirs))
+    #         logger.info('data_shape: %s, process: %d / %d', data_rotation.shape, counter, len(bvh_files_dirs))
 
-            
+    bvh_path = os.path.join(save_path, f'res_motion_{demo_name}.bvh')
+    # for i, bvh_path in enumerate([f'/Users/caocongdanh/Study/NCU/Lab/source/outputs/res_motion_{demo_name}.bvh']):
+        # Derive short name safely; keep the original [11:] semantics
+    base_name  = os.path.basename(bvh_path)
+    short_name = base_name[11:]
+
+    out_path   = os.path.join(save_path, f"res_full_{demo_name}")
+    # header_tmpl_path = os.path.join(demo_name, short_name)
+
+    # --- Read the header/template and the offset line once ---
+    with open("/Users/caocongdanh/Study/NCU/Lab/source/EMAGEMixamo/scripts/EMAGE_2024/utils/assets/1_fufu_0_7_7_full.bvh", 'r') as f:
+        tmpl_lines = f.readlines()
+
+    # Header lines up to file_content_length
+    header_lines = tmpl_lines[:file_content_length]
+
+    # Parse the offset line right after header
+    offset_line  = tmpl_lines[file_content_length]
+    offset_data  = np.fromstring(offset_line, dtype=float, sep=' ')
+
+    # --- Read predicted BVH data (your model output) ---
+    with open(bvh_path, 'r') as f:
+        pred_lines = f.readlines()
+
+    # Update the "Frames:" line in the header (usually header_lines[-2])
+    # Assumes: file_content_length-2 is the "Frames: N" line
+    header_lines[file_content_length - 2] = f"Frames: {len(pred_lines) - 1}\n"
+
+    # --- Write header first (overwrite/create the result file) ---
+    with open(out_path, 'w') as f_out:
+        f_out.writelines(header_lines)
+
+    # --- Build motion rows based on mode/target mapping ---
+    data_rows = []
+    for j, line in enumerate(pred_lines[1:]):  # skip first record line
+        data = np.fromstring(line, dtype=float, sep=' ')
+        # Start from offsets
+        data_rotation = offset_data.copy()
+
+        if mode == "all_or_lower":
+            # `target_list` is assumed to be an OrderedDict-like mapping
+            # of joint names -> slice length (v). `ori_list[k][1]` stores the end index.
+            for iii, (k, v) in enumerate(target_list.items()):
+                end = ori_list[k][1]
+                start = end - v
+                if k == "Hips":
+                    # For hips: first 6 values (3 translation + 3 rotation)
+                    data_rotation[start:end] = data[0:iii*3 + 6]
+                else:
+                    # For other joints: the next 3 rotation values
+                    data_rotation[start:end] = data[iii*3 + 3 : iii*3 + 6]
+
+        elif mode == "upper_only":
+            for iii, (k, v) in enumerate(target_list.items()):
+                end = ori_list[k][1]
+                start = end - v
+                data_rotation[start:end] = data[iii*3 : iii*3 + 3]
+
+        else:
+            raise ValueError(f"Unknown mode: {mode}")
+
+        data_rows.append(data_rotation)
+
+    data_rows = np.asarray(data_rows, dtype=float)
+
+    # --- Append motion rows in fixed-point format (no scientific notation) ---
+    # Use binary append to let np.savetxt write efficiently into the same file
+    with open(out_path, 'ab') as f_out:
+        np.savetxt(f_out, data_rows, fmt="%.6f", delimiter=" ")
+
+    counter += 1
+    if verbose:
+        logger.info('data_shape: %s, process: %d / %d', data_rows.shape, counter, len(bvh_files_dirs))

@@ -1,6 +1,7 @@
 import copy
 import math
 import pickle
+import time
 import numpy as np
 import torch
 import torch.nn as nn
@@ -143,33 +144,11 @@ class MAGE_Transformer(nn.Module):
         nn.init.normal_(self.mask_embeddings, 0, self.args.hidden_size ** -0.5)
     
     def forward(self, in_audio=None, in_word=None, mask=None, is_test=None, in_motion=None, use_attentions=True, use_word=True, in_id = None):
-        # in_word_face = self.text_pre_encoder_face(in_word)
-        # in_word_face = self.text_encoder_face(in_word_face)
-        # in_word_body = self.text_pre_encoder_body(in_word)
-        # in_word_body = self.text_encoder_body(in_word_body)
-        # bs, t, c = in_word_face.shape
+        start = time.time()
         in_audio_face = self.audio_pre_encoder_face(in_audio)
         in_audio_body = self.audio_pre_encoder_body(in_audio)
         bs, t, c = in_audio_body.shape
-        # if in_audio_face.shape[1] != in_motion.shape[1]:
-        #     diff_length = in_motion.shape[1]- in_audio_face.shape[1]
-        #     if diff_length < 0:
-        #         in_audio_face = in_audio_face[:, :diff_length, :]
-        #         in_audio_body = in_audio_body[:, :diff_length, :]
-        #     else:
-        #         in_audio_face = torch.cat((in_audio_face, in_audio_face[:,-diff_length:]),1)
-        #         in_audio_body = torch.cat((in_audio_body, in_audio_body[:,-diff_length:]),1)
-
-        # if use_attentions:           
-        #     alpha_at_face = torch.cat([in_word_face, in_audio_face], dim=-1).reshape(bs, t, c*2)
-        #     alpha_at_face = self.at_attn_face(alpha_at_face).reshape(bs, t, c, 2)
-        #     alpha_at_face = alpha_at_face.softmax(dim=-1)
-        #     fusion_face = in_word_face * alpha_at_face[:,:,:,1] + in_audio_face * alpha_at_face[:,:,:,0]
-        #     alpha_at_body = torch.cat([in_word_body, in_audio_body], dim=-1).reshape(bs, t, c*2)
-        #     alpha_at_body = self.at_attn_body(alpha_at_body).reshape(bs, t, c, 2)
-        #     alpha_at_body = alpha_at_body.softmax(dim=-1)
-        #     fusion_body = in_word_body * alpha_at_body[:,:,:,1] + in_audio_body * alpha_at_body[:,:,:,0]
-        # else:
+        
         fusion_face = in_audio_face
         fusion_body = in_audio_body
         
@@ -178,7 +157,10 @@ class MAGE_Transformer(nn.Module):
         body_hint = self.motion_encoder(masked_motion) # bs t 256
         speaker_embedding_face = self.spearker_encoder_face(in_id).squeeze(2)
         speaker_embedding_body = self.spearker_encoder_body(in_id).squeeze(2)
+        end = time.time()
+        # print(f"Thời gian chạy forward 1: {end - start:.3f} giây")
 
+        start1 = time.time()
         # decode face
         use_body_hints = True
         if use_body_hints:
@@ -190,37 +172,55 @@ class MAGE_Transformer(nn.Module):
         decoded_face = self.face_decoder(tgt=face_embeddings, memory=a2g_face)
         face_latent = self.face2latent(decoded_face)
         cls_face = self.face_classifier(face_latent)
+        end1 = time.time()
+        # print(f"Thời gian chạy forward 2: {end1 - start1:.3f} giây")
 
+        start2 = time.time()
         # motion spatial encoder
         body_hint_body = self.bodyhints_body(body_hint)
         motion_embeddings = self.feature2motion(body_hint_body)
         motion_embeddings = speaker_embedding_body + motion_embeddings
         motion_embeddings = self.position_embeddings(motion_embeddings)
+        end2 = time.time()
+        # print(f"Thời gian chạy forward 3: {end2 - start2:.3f} giây")
 
         # bi-directional self-attention
-        motion_refined_embeddings = self.motion_self_encoder(motion_embeddings) 
-        
+        start3 = time.time()
+        motion_refined_embeddings = self.motion_self_encoder(motion_embeddings)
+        end3 = time.time()
+        # print(f"Thời gian chạy forward 4: {end3 - start3:.3f} giây")
+
         # audio to gesture cross-modal attention
+        start4 = time.time()
         if use_word:
             a2g_motion = self.audio_feature2motion(fusion_body)
             motion_refined_embeddings_in = motion_refined_embeddings + speaker_embedding_body
             motion_refined_embeddings_in = self.position_embeddings(motion_refined_embeddings)
             word_hints = self.wordhints_decoder(tgt=motion_refined_embeddings_in, memory=a2g_motion)
             motion_refined_embeddings = motion_refined_embeddings + word_hints
-        
+        end4 = time.time()
+        # print(f"Thời gian chạy forward 5: {end4 - start4:.3f} giây")
+
         # feedforward
+        start5 = time.time()
         upper_latent = self.motion2latent_upper(motion_refined_embeddings)
         hands_latent = self.motion2latent_hands(motion_refined_embeddings)
         lower_latent = self.motion2latent_lower(motion_refined_embeddings)
+        end5 = time.time()
+        # print(f"Thời gian chạy forward 6: {end5 - start5:.3f} giây")
 
+        start6 = time.time()
         upper_latent_in = upper_latent + speaker_embedding_body
         upper_latent_in = self.position_embeddings(upper_latent_in)
         hands_latent_in = hands_latent + speaker_embedding_body
         hands_latent_in = self.position_embeddings(hands_latent_in)
         lower_latent_in = lower_latent + speaker_embedding_body
         lower_latent_in = self.position_embeddings(lower_latent_in)
+        end6 = time.time()
+        # print(f"Thời gian chạy forward 7: {end6 - start6:.3f} giây")
 
         # transformer decoder
+        start7 = time.time()
         motion_upper = self.upper_decoder(tgt=upper_latent_in, memory=hands_latent+lower_latent)
         motion_hands = self.hands_decoder(tgt=hands_latent_in, memory=upper_latent+lower_latent)
         motion_lower = self.lower_decoder(tgt=lower_latent_in, memory=upper_latent+hands_latent)
@@ -230,6 +230,11 @@ class MAGE_Transformer(nn.Module):
         cls_lower = self.lower_classifier(lower_latent)
         cls_upper = self.upper_classifier(upper_latent)
         cls_hands = self.hands_classifier(hands_latent)
+        end7 = time.time()
+        # print(f"Thời gian chạy forward 8: {end7 - start7:.3f} giây")
+
+        end = time.time()
+        # print(f"Time taken for forward pass: {end - start:.4f} seconds")
 
         return {
             "rec_face":face_latent,
